@@ -1,0 +1,11 @@
+# Dependências
+node_modules/
+
+# Arquivos de build
+dist/
+
+# Logs
+npm-debug.log
+
+# Arquivos de ambiente (MUITO IMPORTANTE)
+.env
