@@ -1,0 +1,45 @@
+# Lista de todos os serviços (contêineres) que nossa aplicação precisa.
+
+services:
+  # --- Serviço do Banco de Dados PostgreSQL ---
+  database:
+    image: postgres:15-alpine #Imagem oficial e leve do PostgreSQL.
+    container_name: sigi_postgres
+    environment:
+      # Define as credenciais para o nosso banco de dados.
+      # Isso permite que você se conecte ao banco usando ferramentas externas, se quiser.
+      - "5432:5432"
+    volumes:
+      # Garante que os dados do banco não sejam perdidos quando o contêiner for desligado.
+      - postgres_data:/var/lib/postgresql/data
+
+  # --- Serviço do Backend Node.js ---
+  backend:
+    build:  ./backend # Instrui o Docker a construir a imagem a partir da pasta 'backend'.
+    container_name: sigi_backend
+    ports:
+      - "4000:4000" # Porta da nossa API
+    volumes:
+      # Espelha o código da sua máquina para dentro do contêiner.
+      # Qualquer alteração que você fizer no código será refletida instantaneamente!
+      - ./backend:/app
+      - /app/node_modules # Evita que a pasta node_modules local sobrescreva a do contêiner.
+    depends_on:
+      - database # Garante que o banco de dados inicie ANTES do backend.
+    environment:
+      # A URL de conexão que o nosso backend usará para encontrar o banco.
+      DATABASE_URL: "postgresql://sigi_user:sigi_password@database:5432/sigi_db?schema=public"
+
+# --- Serviço do Frontend React ---
+  frontend:
+    build: ./frontend
+    container_name: sigi_frontend
+    ports:
+      - "5173:5173" # Porta padrão do Vite (React).
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+
+# Define o "volume" nomeado que usamos para persistir os dados do banco.
+volumes:
+  postgres_data:
