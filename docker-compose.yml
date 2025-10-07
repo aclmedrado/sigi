@@ -5,9 +5,13 @@ services:
   database:
     image: postgres:15-alpine #Imagem oficial e leve do PostgreSQL.
     container_name: sigi_postgres
+    # Define as credenciais para o nosso banco de dados.
+    # Isso permite que você se conecte ao banco usando ferramentas externas, se quiser.
     environment:
-      # Define as credenciais para o nosso banco de dados.
-      # Isso permite que você se conecte ao banco usando ferramentas externas, se quiser.
+      POSTGRES_USER: sigi_user
+      POSTGRES_PASSWORD: sigi_password # <--- ESTA É A LINHA
+      POSTGRES_DB: sigi_db
+    ports:
       - "5432:5432"
     volumes:
       # Garante que os dados do banco não sejam perdidos quando o contêiner for desligado.
