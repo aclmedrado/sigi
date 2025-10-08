@@ -51,6 +51,97 @@ app.get('/solicitacoes', async (req, res) => {
   }
 });
 
+// --- ROTA PARA LISTAR AS SOLICITAÇÕES DO PRÓPRIO USUÁRIO ---
+app.get('/solicitacoes/me', async (req, res) => {
+  try {
+    // Simulação de usuário logado: pegamos o ID de um cabeçalho customizado.
+    const userId = req.headers['x-user-id'];
+
+    // Se o ID não for fornecido, retorna um erro.
+    if (!userId) {
+      return res.status(401).json({ message: "Não autorizado. ID de usuário não fornecido." });
+    }
+
+    const minhasSolicitacoes = await prisma.solicitacao.findMany({
+      // O "where" é a cláusula de filtro!
+      where: {
+        id_usuario: userId,
+      },
+      orderBy: {
+        created_at: 'desc',
+      },
+    });
+
+    res.json(minhasSolicitacoes);
+  } catch (error) {
+    console.error("Erro ao listar solicitações do usuário:", error);
+    res.status(500).json({ message: "Erro interno do servidor." });
+  }
+});
+
+// --- ROTA PARA ATUALIZAR O STATUS DE UMA SOLICITAÇÃO (VISÃO DO ADMIN) ---
+app.patch('/solicitacoes/:id/status', async (req, res) => {
+  try {
+    // Pega o ID da solicitação a partir dos parâmetros da URL
+    const { id } = req.params;
+
+    // Pega o novo status do corpo da requisição
+    const { status } = req.body;
+
+    // Validação simples para garantir que o status foi enviado
+    if (!status) {
+      return res.status(400).json({ message: "Novo status não fornecido." });
+    }
+
+    // Usa o Prisma para encontrar a solicitação pelo seu ID e atualizar apenas o campo 'status'
+    const solicitacaoAtualizada = await prisma.solicitacao.update({
+      where: {
+        id: id,
+      },
+      data: {
+        status: status,
+      },
+    });
+
+    // Retorna a solicitação com os dados atualizados
+    res.json(solicitacaoAtualizada);
+
+  } catch (error) {
+    console.error("Erro ao atualizar status da solicitação:", error);
+    // O Prisma retorna um erro específico ('P2025') se não encontrar o registro
+    if (error.code === 'P2025') {
+      return res.status(404).json({ message: "Solicitação não encontrada." });
+    }
+    res.status(500).json({ message: "Erro interno do servidor." });
+  }
+});
+
+// --- ROTA PARA DELETAR UMA SOLICITAÇÃO ---
+app.delete('/solicitacoes/:id', async (req, res) => {
+  try {
+    // Pega o ID da solicitação a partir dos parâmetros da URL
+    const { id } = req.params;
+
+    // Usa o Prisma para deletar a solicitação pelo seu ID
+    await prisma.solicitacao.delete({
+      where: {
+        id: id,
+      },
+    });
+
+    // Envia uma resposta de sucesso 204 (No Content), que é o padrão para DELETE.
+    // Isso significa "operação concluída com sucesso, não tenho mais nada a dizer".
+    res.status(204).send();
+
+  } catch (error) {
+    console.error("Erro ao deletar solicitação:", error);
+    if (error.code === 'P2025') {
+      return res.status(404).json({ message: "Solicitação não encontrada." });
+    }
+    res.status(500).json({ message: "Erro interno do servidor." });
+  }
+});
+
 // Inicia o servidor e o mantém no ar, escutando na porta definida.
 // ESTA É A PARTE QUE ESTAVA FALTANDO!
 app.listen(PORT, () => {
