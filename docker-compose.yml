@@ -23,6 +23,7 @@ services:
     container_name: sigi_backend
     ports:
       - "4000:4000" # Porta da nossa API
+      - "5555:5555"
     volumes:
       # Espelha o código da sua máquina para dentro do contêiner.
       # Qualquer alteração que você fizer no código será refletida instantaneamente!
