@@ -33,6 +33,7 @@ services:
     environment:
       # A URL de conexão que o nosso backend usará para encontrar o banco.
       DATABASE_URL: "postgresql://sigi_user:sigi_password@database:5432/sigi_db?schema=public"
+    command: sh -c "npm install && npx prisma generate && npm run dev"
 
 # --- Serviço do Frontend React ---
   frontend:
