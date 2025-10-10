@@ -1,7 +1,6 @@
 import React from 'react';
 
 // --- NOSSOS DADOS FALSOS (MOCK DATA) ---
-// Em uma aplicação real, estes dados viriam da nossa API.
 const mockSolicitacoes = [
   {
     id: '1',
@@ -30,7 +29,7 @@ const mockSolicitacoes = [
 ];
 // --- FIM DOS DADOS FALSOS ---
 
-export default function DashboardSolicitante() {
+export default function DashboardSolicitante({ onNavigate }) { // <--- CORREÇÃO AQUI
   return (
     <div style={{ fontFamily: 'sans-serif', padding: '2rem' }}>
       {/* Cabeçalho da Página */}
@@ -39,7 +38,7 @@ export default function DashboardSolicitante() {
           <h1 style={{ fontSize: '2rem', fontWeight: 'bold' }}>Minhas Solicitações</h1>
           <p style={{ color: '#666' }}>Acompanhe o status dos seus pedidos de impressão.</p>
         </div>
-        <button style={{ padding: '0.75rem 1.5rem', backgroundColor: '#3366FF', color: 'white', border: 'none', borderRadius: '0.5rem', cursor: 'pointer', fontSize: '1rem' }}>
+        <button onClick={() => onNavigate('formulario')} style={{ padding: '0.75rem 1.5rem', backgroundColor: '#3366FF', color: 'white', border: 'none', borderRadius: '0.5rem', cursor: 'pointer', fontSize: '1rem' }}> {/* <--- CORREÇÃO AQUI */}
           + Nova Solicitação
         </button>
       </div>
