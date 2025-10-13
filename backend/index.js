@@ -1,10 +1,13 @@
 // Importa as ferramentas que vamos usar
 const express = require('express');
 const { PrismaClient } = require('@prisma/client');
+const cors = require('cors');
 
 // Inicializa as ferramentas
 const prisma = new PrismaClient();
 const app = express();
+
+app.use(cors());
 app.use(express.json()); // Permite que nosso servidor entenda JSON
 
 const PORT = 4000;
