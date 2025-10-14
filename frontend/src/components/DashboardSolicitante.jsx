@@ -1,46 +1,49 @@
-import React, { useState, useEffect } from 'react'; // 1. Importamos useState e useEffect
-import axios from 'axios'; // 2. Importamos o axios
+import React, { useState, useEffect } from 'react';
+// A instância 'api' virá do App.jsx, mas por enquanto vamos usar axios diretamente
+import axios from 'axios';
 
-// --- OS DADOS FALSOS FORAM REMOVIDOS ---
+// A instância do axios agora deve ser configurada para enviar cookies,
+// pois é assim que o backend saberá quem está logado.
+const api = axios.create({
+  baseURL: 'http://localhost:4000',
+  withCredentials: true,
+});
 
-export default function DashboardSolicitante({ onNavigate }) {
-  // --- NOVOS ESTADOS PARA GERENCIAR NOSSOS DADOS ---
-  const [solicitacoes, setSolicitacoes] = useState([]); // Guarda a lista de solicitações vindas da API
-  const [isLoading, setIsLoading] = useState(true); // Controla se estamos carregando os dados
-  const [error, setError] = useState(null); // Guarda qualquer erro que aconteça
-  // --- FIM DOS NOVOS ESTADOS ---
+// --- O COMPONENTE AGORA RECEBE 'user' COMO UMA PROP ---
+// Esta é a principal mudança: em vez de ter um ID fixo, recebemos os dados do usuário
+// que fez o login, vindos do componente App.jsx.
+export default function DashboardSolicitante({ onNavigate, user }) {
+  const [solicitacoes, setSolicitacoes] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  // useEffect: Este bloco de código é executado automaticamente uma vez,
-  // quando o componente é renderizado pela primeira vez. Perfeito para buscar dados!
   useEffect(() => {
     const fetchSolicitacoes = async () => {
       try {
-        // SIMULAÇÃO DE USUÁRIO LOGADO: Pegue o ID do usuário que criamos com o Prisma Studio
-        const userId = '0002'; // ❗️ SUBSTITUA PELO ID REAL
+        // --- REMOVEMOS O ID FIXO ---
+        // A linha 'const userId = ...' foi removida.
 
-        // Montamos a requisição com o axios
-        const response = await axios.get('http://localhost:4000/solicitacoes/me', {
-          headers: {
-            'x-user-id': userId, // Enviamos o ID do usuário no cabeçalho, como testamos no Thunder Client
-          },
-        });
+        // --- CHAMADA DE API SIMPLIFICADA ---
+        // Agora, chamamos um endpoint que automaticamente usa a sessão do usuário no backend.
+        // Não precisamos mais enviar o 'x-user-id' no cabeçalho, pois o cookie de sessão já faz isso.
+        // NOTA: Precisaremos ajustar o endpoint no backend para usar 'req.user.id'
+        const response = await api.get('/api/solicitacoes/me');
 
-        // Se a requisição deu certo, guardamos os dados no nosso estado
         setSolicitacoes(response.data);
       } catch (err) {
-        // Se deu erro, guardamos a mensagem de erro
         setError('Falha ao buscar as solicitações. Tente novamente mais tarde.');
-        console.error(err); // Mostra o erro detalhado no console do navegador
+        console.error("Erro detalhado:", err);
       } finally {
-        // Independentemente de sucesso ou erro, paramos o "carregando"
         setIsLoading(false);
       }
     };
 
-    fetchSolicitacoes(); // Chamamos a função que busca os dados
-  }, []); // O array vazio [] garante que isso só rode uma vez
+    // Só tentamos buscar os dados se tivermos um usuário logado.
+    if (user) {
+      fetchSolicitacoes();
+    }
+  }, [user]); // O array [user] garante que a busca seja refeita se o usuário mudar.
 
-  // --- RENDERIZAÇÃO CONDICIONAL ---
   if (isLoading) {
     return <div style={{ padding: '2rem' }}>Carregando solicitações...</div>;
   }
@@ -48,14 +51,14 @@ export default function DashboardSolicitante({ onNavigate }) {
   if (error) {
     return <div style={{ padding: '2rem', color: 'red' }}>{error}</div>;
   }
-  // --- FIM DA RENDERIZAÇÃO CONDICIONAL ---
 
   return (
     <div style={{ fontFamily: 'sans-serif', padding: '2rem' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
         <div>
           <h1 style={{ fontSize: '2rem', fontWeight: 'bold' }}>Minhas Solicitações</h1>
-          <p style={{ color: '#666' }}>Acompanhe o status dos seus pedidos de impressão.</p>
+          {/* Saudação personalizada usando o nome do usuário logado */}
+          <p style={{ color: '#666' }}>Olá, {user.nome_completo}! Acompanhe seus pedidos.</p>
         </div>
         <button onClick={() => onNavigate('formulario')} style={{ padding: '0.75rem 1.5rem', backgroundColor: '#3366FF', color: 'white', border: 'none', borderRadius: '0.5rem', cursor: 'pointer', fontSize: '1rem' }}>
           + Nova Solicitação
@@ -64,11 +67,17 @@ export default function DashboardSolicitante({ onNavigate }) {
 
       <div style={{ border: '1px solid #ddd', borderRadius: '0.5rem', overflow: 'hidden' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          {/* O cabeçalho da tabela continua o mesmo */}
           <thead>
-            {/* ... (o cabeçalho da tabela continua igual) ... */}
+            <tr style={{ backgroundColor: '#f9f9f9' }}>
+              <th style={{ padding: '1rem', textAlign: 'left', borderBottom: '1px solid #ddd' }}>Data</th>
+              <th style={{ padding: '1rem', textAlign: 'left', borderBottom: '1px solid #ddd' }}>Arquivo</th>
+              <th style={{ padding: '1rem', textAlign: 'left', borderBottom: '1px solid #ddd' }}>Tipo</th>
+              <th style={{ padding: '1rem', textAlign: 'left', borderBottom: '1px solid #ddd' }}>Cópias</th>
+              <th style={{ padding: '1rem', textAlign: 'left', borderBottom: '1px solid #ddd' }}>Status</th>
+            </tr>
           </thead>
           <tbody>
-            {/* Agora, usamos o nosso estado 'solicitacoes' para preencher a tabela */}
             {solicitacoes.length > 0 ? (
               solicitacoes.map((solicitacao) => (
                 <tr key={solicitacao.id} style={{ borderBottom: '1px solid #ddd' }}>

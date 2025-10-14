@@ -1,21 +1,99 @@
-// Importa as ferramentas que vamos usar
+// --- 1. IMPORTAÇÕES ---
 const express = require('express');
 const { PrismaClient } = require('@prisma/client');
 const cors = require('cors');
+const session = require('express-session');
+const passport = require('passport');
+const GoogleStrategy = require('passport-google-oauth20').Strategy;
 
-// Inicializa as ferramentas
+// --- 2. INICIALIZAÇÕES ---
 const prisma = new PrismaClient();
 const app = express();
 
-app.use(cors());
-app.use(express.json()); // Permite que nosso servidor entenda JSON
+app.use(cors({
+  origin: 'http://localhost:5173', // Permite que o frontend acesse a API
+  credentials: true, // Permite o envio de cookies de sessão
+}));
+app.use(express.json());
 
 const PORT = 4000;
 
-// Nosso primeiro endpoint de teste!
+// --- 3. CONFIGURAÇÃO DA SESSÃO ---
+app.use(session({
+  secret: process.env.SESSION_SECRET,
+  resave: false,
+  saveUninitialized: false,
+  cookie: { secure: false, httpOnly: true, maxAge: 24 * 60 * 60 * 1000 } // 1 dia
+}));
+
+// --- 4. CONFIGURAÇÃO DO PASSPORT ---
+app.use(passport.initialize());
+app.use(passport.session());
+
+passport.use(new GoogleStrategy({
+    clientID: process.env.GOOGLE_CLIENT_ID,
+    clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+    callbackURL: "http://localhost:4000/auth/google/callback"
+  },
+  async (accessToken, refreshToken, profile, done) => {
+    try {
+      // Lógica "Encontre ou Crie" o usuário
+      let user = await prisma.user.findUnique({ where: { email: profile.emails[0].value } });
+
+      if (!user) {
+        user = await prisma.user.create({
+          data: {
+            email: profile.emails[0].value,
+            nome_completo: profile.displayName,
+            foto_perfil: profile.photos[0].value,
+          }
+        });
+      }
+      return done(null, user);
+    } catch (error) {
+      return done(error, null);
+    }
+  }
+));
+
+passport.serializeUser((user, done) => {
+  done(null, user.id);
+});
+
+passport.deserializeUser(async (id, done) => {
+  try {
+    const user = await prisma.user.findUnique({ where: { id } });
+    done(null, user);
+  } catch (error) {
+    done(error, null);
+  }
+});
+
+// --- 5. ROTAS DE AUTENTICAÇÃO ---
+app.get('/auth/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
+
+app.get('/auth/google/callback', 
+  passport.authenticate('google', { failureRedirect: '/login/failed' }),
+  (req, res) => {
+    // Redireciona de volta para o frontend após o sucesso do login
+    res.redirect('http://localhost:5173');
+  }
+);
+
+// Rota para o frontend verificar quem está logado
+app.get('/api/me', (req, res) => {
+  if (req.user) {
+    res.json(req.user);
+  } else {
+    res.status(401).json({ message: 'Não autenticado' });
+  }
+});
+
+// --- 6. ROTAS DA API ---
+
+// Rota de Teste
 app.get('/test', async (req, res) => {
   try {
-    // Tenta fazer uma operação simples no banco: contar os usuários.
     const userCount = await prisma.user.count();
     res.json({
       message: 'Conexão com o banco de dados bem-sucedida!',
@@ -29,21 +107,38 @@ app.get('/test', async (req, res) => {
   }
 });
 
-// --- ROTA PARA LISTAR TODAS AS SOLICITAÇÕES (VISÃO DO ADMIN) ---
-app.get('/solicitacoes', async (req, res) => {
+// Rota para Criar uma Nova Solicitação
+app.post('/api/solicitacoes', async (req, res) => {
+  try {
+    const { id_usuario, tipo_documento, numero_copias, observacoes } = req.body;
+    const url_arquivo_armazenado = "uploads/arquivo_teste.pdf"; // Valor Fixo por enquanto
+    if (!id_usuario || !tipo_documento || !numero_copias) {
+      return res.status(400).json({ message: "Dados incompletos para criar a solicitação." });
+    }
+    const novaSolicitacao = await prisma.solicitacao.create({
+      data: {
+        id_usuario,
+        url_arquivo_armazenado,
+        tipo_documento,
+        numero_copias,
+        observacoes,
+      },
+    });
+    res.status(201).json(novaSolicitacao);
+  } catch (error) {
+    console.error("Erro ao criar solicitação:", error);
+    res.status(500).json({ message: "Erro interno do servidor ao criar solicitação." });
+  }
+});
+
+// Rota para Listar Todas as Solicitações (Visão do Admin)
+app.get('/api/solicitacoes', async (req, res) => {
   try {
     const todasSolicitacoes = await prisma.solicitacao.findMany({
-      // Ordena as solicitações da mais recente para a mais antiga
-      orderBy: {
-        created_at: 'desc',
-      },
-      // Inclui os dados do usuário relacionado em cada solicitação
+      orderBy: { created_at: 'desc' },
       include: {
         User: {
-          select: {
-            nome_completo: true,
-            email: true,
-          },
+          select: { nome_completo: true, email: true },
         },
       },
     });
@@ -54,19 +149,16 @@ app.get('/solicitacoes', async (req, res) => {
   }
 });
 
-// --- ROTA PARA LISTAR AS SOLICITAÇÕES DO PRÓPRIO USUÁRIO ---
-app.get('/solicitacoes/me', async (req, res) => {
+// Rota para Listar as Solicitações do Próprio Usuário
+app.get('/api/solicitacoes/me', async (req, res) => {
+  // Se o usuário não estiver logado, o Passport não adicionará 'req.user'
+  if (!req.user) {
+    return res.status(401).json({ message: "Não autenticado." });
+  }
   try {
-    // Simulação de usuário logado: pegamos o ID de um cabeçalho customizado.
-    const userId = req.headers['x-user-id'];
-
-    // Se o ID não for fornecido, retorna um erro.
-    if (!userId) {
-      return res.status(401).json({ message: "Não autorizado. ID de usuário não fornecido." });
-    }
+    const userId = req.user.id; // <--- Pega o ID do usuário da sessão!
 
     const minhasSolicitacoes = await prisma.solicitacao.findMany({
-      // O "where" é a cláusula de filtro!
       where: {
         id_usuario: userId,
       },
@@ -74,7 +166,6 @@ app.get('/solicitacoes/me', async (req, res) => {
         created_at: 'desc',
       },
     });
-
     res.json(minhasSolicitacoes);
   } catch (error) {
     console.error("Erro ao listar solicitações do usuário:", error);
@@ -82,36 +173,21 @@ app.get('/solicitacoes/me', async (req, res) => {
   }
 });
 
-// --- ROTA PARA ATUALIZAR O STATUS DE UMA SOLICITAÇÃO (VISÃO DO ADMIN) ---
-app.patch('/solicitacoes/:id/status', async (req, res) => {
+// Rota para Atualizar o Status de uma Solicitação (Visão do Admin)
+app.patch('/api/solicitacoes/:id/status', async (req, res) => {
   try {
-    // Pega o ID da solicitação a partir dos parâmetros da URL
     const { id } = req.params;
-
-    // Pega o novo status do corpo da requisição
     const { status } = req.body;
-
-    // Validação simples para garantir que o status foi enviado
     if (!status) {
       return res.status(400).json({ message: "Novo status não fornecido." });
     }
-
-    // Usa o Prisma para encontrar a solicitação pelo seu ID e atualizar apenas o campo 'status'
     const solicitacaoAtualizada = await prisma.solicitacao.update({
-      where: {
-        id: id,
-      },
-      data: {
-        status: status,
-      },
+      where: { id: id },
+      data: { status: status },
     });
-
-    // Retorna a solicitação com os dados atualizados
     res.json(solicitacaoAtualizada);
-
   } catch (error) {
     console.error("Erro ao atualizar status da solicitação:", error);
-    // O Prisma retorna um erro específico ('P2025') se não encontrar o registro
     if (error.code === 'P2025') {
       return res.status(404).json({ message: "Solicitação não encontrada." });
     }
@@ -119,23 +195,14 @@ app.patch('/solicitacoes/:id/status', async (req, res) => {
   }
 });
 
-// --- ROTA PARA DELETAR UMA SOLICITAÇÃO ---
-app.delete('/solicitacoes/:id', async (req, res) => {
+// Rota para Deletar uma Solicitação
+app.delete('/api/solicitacoes/:id', async (req, res) => {
   try {
-    // Pega o ID da solicitação a partir dos parâmetros da URL
     const { id } = req.params;
-
-    // Usa o Prisma para deletar a solicitação pelo seu ID
     await prisma.solicitacao.delete({
-      where: {
-        id: id,
-      },
+      where: { id: id },
     });
-
-    // Envia uma resposta de sucesso 204 (No Content), que é o padrão para DELETE.
-    // Isso significa "operação concluída com sucesso, não tenho mais nada a dizer".
     res.status(204).send();
-
   } catch (error) {
     console.error("Erro ao deletar solicitação:", error);
     if (error.code === 'P2025') {
@@ -145,42 +212,8 @@ app.delete('/solicitacoes/:id', async (req, res) => {
   }
 });
 
-// Inicia o servidor e o mantém no ar, escutando na porta definida.
-// ESTA É A PARTE QUE ESTAVA FALTANDO!
+
+// --- 7. INÍCIO DO SERVIDOR ---
 app.listen(PORT, () => {
   console.log(`Servidor rodando na porta http://localhost:${PORT}`);
-});
-
-// --- ROTA PARA CRIAR UMA NOVA SOLICITAÇÃO ---
-app.post('/solicitacoes', async (req, res) => {
-  try {
-    // Pega os dados do corpo da requisição
-    const { id_usuario, tipo_documento, numero_copias, observacoes } = req.body;
-
-    // Por enquanto, vamos ignorar o upload do arquivo e colocar um valor fixo
-    const url_arquivo_armazenado = "uploads/arquivo_teste.pdf";
-
-    // Validação simples (podemos melhorar depois)
-    if (!id_usuario || !tipo_documento || !numero_copias) {
-      return res.status(400).json({ message: "Dados incompletos para criar a solicitação." });
-    }
-
-    // Usa o Prisma para criar o registro no banco de dados
-    const novaSolicitacao = await prisma.solicitacao.create({
-      data: {
-        id_usuario,
-        url_arquivo_armazenado,
-        tipo_documento,
-        numero_copias,
-        observacoes,
-      },
-    });
-
-    // Retorna a solicitação recém-criada com status 201 (Criado)
-    res.status(201).json(novaSolicitacao);
-
-  } catch (error) {
-    console.error("Erro ao criar solicitação:", error);
-    res.status(500).json({ message: "Erro interno do servidor ao criar solicitação." });
-  }
 });

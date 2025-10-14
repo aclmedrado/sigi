@@ -1,8 +1,14 @@
 import React, { useState } from 'react';
 import axios from 'axios';
 
-export default function FormularioSolicitacao({ onNavigate }) {
-  // Estados para cada campo do formulário
+// Novamente, configuramos o axios para enviar cookies
+const api = axios.create({
+  baseURL: 'http://localhost:4000',
+  withCredentials: true,
+});
+
+// --- O COMPONENTE TAMBÉM RECEBE 'user' COMO UMA PROP ---
+export default function FormularioSolicitacao({ onNavigate, user }) {
   const [tipoDocumento, setTipoDocumento] = useState('');
   const [numeroCopias, setNumeroCopias] = useState(1);
   const [observacoes, setObservacoes] = useState('');
@@ -10,11 +16,10 @@ export default function FormularioSolicitacao({ onNavigate }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSubmit = async (event) => {
-    event.preventDefault(); // Impede o recarregamento padrão da página
+    event.preventDefault();
     setIsSubmitting(true);
     setError(null);
 
-    // Validação simples
     if (!tipoDocumento) {
       setError('Por favor, selecione um tipo de documento.');
       setIsSubmitting(false);
@@ -22,31 +27,35 @@ export default function FormularioSolicitacao({ onNavigate }) {
     }
 
     try {
-      // SIMULAÇÃO DE USUÁRIO LOGADO: Pegue o mesmo ID que você usou no dashboard
-      const userId = '0002'; // ❗️ SUBSTITUA PELO ID REAL
+      // --- REMOVEMOS O ID FIXO ---
+      // A linha 'const userId = ...' foi removida.
 
       const novaSolicitacao = {
-        id_usuario: userId,
+        // --- USAMOS O ID DO USUÁRIO LOGADO ---
+        // Agora, o id_usuario é pego diretamente do objeto 'user'
+        // que recebemos via props.
+        id_usuario: user.id,
         tipo_documento: tipoDocumento,
-        numero_copias: parseInt(numeroCopias, 10), // Garante que é um número
+        numero_copias: parseInt(numeroCopias, 10),
         observacoes: observacoes,
       };
 
-      // Enviando os dados para a API com axios
-      await axios.post('http://localhost:4000/solicitacoes', novaSolicitacao);
+      // Enviamos para o endpoint de criação
+      await api.post('/api/solicitacoes', novaSolicitacao);
 
-      // Se deu tudo certo, navega de volta para o dashboard
+      // Se deu certo, volta para o dashboard
       onNavigate('dashboard');
 
     } catch (err) {
       setError('Falha ao enviar a solicitação. Tente novamente.');
-      console.error(err);
+      console.error("Erro detalhado:", err);
     } finally {
       setIsSubmitting(false);
     }
   };
 
   return (
+    // O JSX (a parte visual) do formulário continua praticamente o mesmo
     <div style={{ fontFamily: 'sans-serif', padding: '2rem', maxWidth: '800px', margin: 'auto' }}>
       <a onClick={() => onNavigate('dashboard')} style={{ color: '#3366FF', cursor: 'pointer', marginBottom: '1.5rem', display: 'inline-block' }}>
         &larr; Voltar para o Dashboard
@@ -74,7 +83,6 @@ export default function FormularioSolicitacao({ onNavigate }) {
           <input type="number" id="numero_copias" value={numeroCopias} onChange={(e) => setNumeroCopias(e.target.value)} style={{ width: '100%', padding: '0.75rem', border: '1px solid #ddd', borderRadius: '0.5rem' }} />
         </div>
 
-        {/* O upload de arquivo será implementado na Semana 7 */}
         <div>
           <label>Anexar Arquivo *</label>
           <div style={{ border: '2px dashed #ddd', borderRadius: '0.5rem', padding: '2rem', textAlign: 'center', backgroundColor: '#f9f9f9' }}>
