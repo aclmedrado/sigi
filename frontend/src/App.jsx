@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import DashboardAdmin from './components/DashboardAdmin';
 import DashboardSolicitante from './components/DashboardSolicitante';
 import FormularioSolicitacao from './components/FormularioSolicitacao';
 import Login from './components/Login';
@@ -43,12 +44,17 @@ function App() {
     return <div>Carregando...</div>;
   }
 
-  // Se não há usuário, mostra a tela de Login
   if (!user) {
     return <Login />;
   }
 
-  // Se há um usuário, mostra o Dashboard ou o Formulário
+  // A MÁGICA ACONTECE AQUI: Verificamos a 'role' do usuário
+  if (user.role === 'administrador') {
+    // Se for admin, renderiza o DashboardAdmin
+    return <DashboardAdmin user={user} />;
+  }
+
+  // Se não for admin, continua renderizando o fluxo normal do solicitante
   return (
     <div>
       {paginaAtual === 'dashboard' && <DashboardSolicitante onNavigate={handleNavigate} user={user} />}
