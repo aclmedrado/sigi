@@ -1,46 +1,54 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import DashboardAdmin from './components/DashboardAdmin';
-import Metricas from './components/Metricas';
 import DashboardSolicitante from './components/DashboardSolicitante';
 import FormularioSolicitacao from './components/FormularioSolicitacao';
 import Login from './components/Login';
+import DashboardAdmin from './components/DashboardAdmin';
+import Metricas from './components/Metricas'; // Certifique-se de que o componente Metricas está importado
 
-// Configuração do Axios para enviar cookies com cada requisição
 const api = axios.create({
   baseURL: 'http://localhost:4000',
   withCredentials: true,
 });
 
 function App() {
-  const [user, setUser] = useState(null); // Guarda os dados do usuário logado
-  const [isLoading, setIsLoading] = useState(true); // Controla o carregamento inicial
-  const [paginaAtual, setPaginaAtual] = useState('dashboard');
+  const [user, setUser] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  
+  // O estado 'view' agora controla tanto a PÁGINA quanto o PAPEL (role)
+  const [view, setView] = useState({ pagina: 'dashboard', role: null });
 
-  // Este useEffect roda uma vez quando o app carrega
+  // Função para mudar a página (ex: de 'dashboard' para 'formulario' ou 'metrics')
+  const handleNavigate = (pagina) => {
+    setView(prev => ({ ...prev, pagina: pagina }));
+  };
+
+  // Função para o admin trocar de "chapéu"
+  const handleToggleRoleView = () => {
+    setView(prev => ({
+      ...prev,
+      pagina: 'dashboard', // Sempre volta para o dashboard ao trocar de visão
+      role: prev.role === 'administrador' ? 'solicitante' : 'administrador',
+    }));
+  };
+
   useEffect(() => {
     const checkLoginStatus = async () => {
       try {
-        // Pergunta ao backend: "Quem está logado nesta sessão?"
         const response = await api.get('/api/me');
-        setUser(response.data); // Se houver alguém, guarda os dados
+        setUser(response.data);
+        // Define a visão inicial baseada no role real do usuário
+        setView(prev => ({ ...prev, role: response.data.role })); 
       } catch (error) {
-        // Se der erro (ninguém logado), o usuário continua como 'null'
         console.log("Nenhum usuário logado na sessão.");
       } finally {
-        setIsLoading(false); // Termina o carregamento inicial
+        setIsLoading(false);
       }
     };
     checkLoginStatus();
   }, []);
 
-  const handleNavigate = (pagina) => {
-    setPaginaAtual(pagina);
-  };
-
-  // --- RENDERIZAÇÃO CONDICIONAL ---
-
-  // Se ainda estamos verificando o login, mostra uma tela de carregamento
+  // --- RENDERIZAÇÃO CONDICIONAL ATUALIZADA E CORRIGIDA ---
   if (isLoading) {
     return <div>Carregando...</div>;
   }
@@ -48,34 +56,30 @@ function App() {
   if (!user) {
     return <Login />;
   }
-
-  // A MÁGICA ACONTECE AQUI: Verificamos a 'role' do usuário
-  if (user.role === 'administrador') {
-  // Se for admin, verifica qual página ele quer ver
-    if (paginaAtual === 'dashboard') {
-      return <DashboardAdmin user={user} onNavigate={handleNavigate} />;
+  
+  // LÓGICA PARA A VISÃO DE ADMINISTRADOR (AGORA COMPLETA)
+  if (view.role === 'administrador') {
+    // Se for admin, verifica qual PÁGINA ele quer ver
+    if (view.pagina === 'dashboard') {
+      return <DashboardAdmin user={user} onNavigate={handleNavigate} onToggleRole={handleToggleRoleView} />;
     }
-    if (paginaAtual === 'metrics') {
-      return <Metricas onNavigate={handleNavigate} />;
+    if (view.pagina === 'metrics') {
+      return <Metricas user={user} onNavigate={handleNavigate} />;
     }
   }
-}
 
-
-/*  
-  if (user.role === 'administrador') {
-    // Se for admin, renderiza o DashboardAdmin
-    return <DashboardAdmin user={user} />;
+  // LÓGICA PARA A VISÃO DE SOLICITANTE
+  if (view.role === 'solicitante') {
+    if (view.pagina === 'dashboard') {
+      return <DashboardSolicitante onNavigate={handleNavigate} user={user} onToggleRole={handleToggleRoleView} />;
+    }
+    if (view.pagina === 'formulario') {
+      return <FormularioSolicitacao onNavigate={handleNavigate} user={user} />;
+    }
   }
 
-  // Se não for admin, continua renderizando o fluxo normal do solicitante
-  return (
-    <div>
-      {paginaAtual === 'dashboard' && <DashboardSolicitante onNavigate={handleNavigate} user={user} />}
-      {paginaAtual === 'formulario' && <FormularioSolicitacao onNavigate={handleNavigate} user={user} />}
-    </div>
-  );
+  // Uma tela de fallback para caso algo dê errado
+  return <div>Ocorreu um erro na renderização da página.</div>;
 }
-*/
 
 export default App;

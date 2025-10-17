@@ -8,7 +8,7 @@ const api = axios.create({
   withCredentials: true,
 });
 
-export default function DashboardSolicitante({ onNavigate, user }) {
+export default function DashboardSolicitante({ onNavigate, user, onToggleRole }) {
   const [solicitacoes, setSolicitacoes] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -60,6 +60,12 @@ export default function DashboardSolicitante({ onNavigate, user }) {
           <h1 style={{ fontSize: '2rem', fontWeight: 'bold' }}>Minhas Solicitações</h1>
           <p style={{ color: '#666' }}>Olá, {user.nome_completo}! Acompanhe seus pedidos.</p>
         </div>
+        {/* Este botão só aparece se o usuário for um admin de verdade */}
+        {user.role === 'administrador' && (
+          <button onClick={onToggleRole} style={{ marginRight: '1rem', backgroundColor: '#007bff', color: 'white' }}>
+            Voltar para Visão de Admin
+          </button>
+        )}
         <button onClick={() => onNavigate('formulario')} style={{ padding: '0.75rem 1.5rem', backgroundColor: '#3366FF', color: 'white', border: 'none', borderRadius: '0.5rem', cursor: 'pointer', fontSize: '1rem' }}>
           + Nova Solicitação
         </button>

@@ -1,13 +1,21 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 
+const extractFileName = (url) => {
+  try {
+    return decodeURIComponent(url.split('/').pop().split('?')[0]);
+  } catch (e) {
+    return "Visualizar Arquivo";
+  }
+};
+
 // Configuração do Axios para enviar cookies
 const api = axios.create({
   baseURL: 'http://localhost:4000',
   withCredentials: true,
 });
 
-export default function DashboardAdmin({ user, onNavigate }) {
+export default function DashboardAdmin({ user, onNavigate, onToggleRole }) {
   // Estados para gerenciar a lista, carregamento e erros
   const [solicitacoes, setSolicitacoes] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -74,6 +82,9 @@ export default function DashboardAdmin({ user, onNavigate }) {
       <div>
         <h1 style={{ fontSize: '2rem', fontWeight: 'bold' }}>Painel do Administrador</h1>
         <p style={{ color: '#666' }}>Olá, {user.nome_completo}! Gerencie todas as solicitações do campus.</p>
+        <button onClick={onToggleRole} style={{ marginTop: '1rem', backgroundColor: '#6c757d', color: 'white' }}>
+            Ver como Solicitante
+        </button>
         <button onClick={() => onNavigate('metrics')} style={{ marginTop: '1rem' }}>
             Ver Métricas
         </button>
@@ -86,6 +97,7 @@ export default function DashboardAdmin({ user, onNavigate }) {
             <tr style={{ backgroundColor: '#f9f9f9' }}>
               <th style={{ padding: '1rem', textAlign: 'left' }}>Data</th>
               <th style={{ padding: '1rem', textAlign: 'left' }}>Solicitante</th>
+              <th style={{ padding: '1rem', textAlign: 'left' }}>Arquivo</th>
               <th style={{ padding: '1rem', textAlign: 'left' }}>Tipo</th>
               <th style={{ padding: '1rem', textAlign: 'left' }}>Cópias</th>
               <th style={{ padding: '1rem', textAlign: 'left' }}>Status</th>
@@ -97,6 +109,16 @@ export default function DashboardAdmin({ user, onNavigate }) {
               <tr key={solicitacao.id} style={{ borderBottom: '1px solid #ddd' }}>
                 <td style={{ padding: '1rem' }}>{new Date(solicitacao.created_at).toLocaleDateString()}</td>
                 <td style={{ padding: '1rem' }}>{solicitacao.User?.nome_completo || solicitacao.User?.email}</td>
+                <td style={{ padding: '1rem' }}>
+                    <a 
+                    href={solicitacao.url_arquivo_armazenado} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    style={{ color: '#3366FF', textDecoration: 'none' }}
+                    >
+                    {extractFileName(solicitacao.url_arquivo_armazenado)}
+                    </a>
+                </td>
                 <td style={{ padding: '1rem' }}>{solicitacao.tipo_documento}</td>
                 <td style={{ padding: '1rem' }}>{solicitacao.numero_copias}</td>
                 <td style={{ padding: '1rem' }}>{solicitacao.status}</td>
