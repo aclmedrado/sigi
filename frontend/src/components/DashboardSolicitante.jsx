@@ -1,17 +1,13 @@
 import React, { useState, useEffect } from 'react';
-// A instância 'api' virá do App.jsx, mas por enquanto vamos usar axios diretamente
 import axios from 'axios';
 
-// A instância do axios agora deve ser configurada para enviar cookies,
+// A instância do axios agora está configurada para enviar cookies,
 // pois é assim que o backend saberá quem está logado.
 const api = axios.create({
   baseURL: 'http://localhost:4000',
   withCredentials: true,
 });
 
-// --- O COMPONENTE AGORA RECEBE 'user' COMO UMA PROP ---
-// Esta é a principal mudança: em vez de ter um ID fixo, recebemos os dados do usuário
-// que fez o login, vindos do componente App.jsx.
 export default function DashboardSolicitante({ onNavigate, user }) {
   const [solicitacoes, setSolicitacoes] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -20,15 +16,8 @@ export default function DashboardSolicitante({ onNavigate, user }) {
   useEffect(() => {
     const fetchSolicitacoes = async () => {
       try {
-        // --- REMOVEMOS O ID FIXO ---
-        // A linha 'const userId = ...' foi removida.
-
-        // --- CHAMADA DE API SIMPLIFICADA ---
-        // Agora, chamamos um endpoint que automaticamente usa a sessão do usuário no backend.
-        // Não precisamos mais enviar o 'x-user-id' no cabeçalho, pois o cookie de sessão já faz isso.
-        // NOTA: Precisaremos ajustar o endpoint no backend para usar 'req.user.id'
+        // A chamada de API agora usa a sessão do usuário no backend.
         const response = await api.get('/api/solicitacoes/me');
-
         setSolicitacoes(response.data);
       } catch (err) {
         setError('Falha ao buscar as solicitações. Tente novamente mais tarde.');
@@ -38,11 +27,23 @@ export default function DashboardSolicitante({ onNavigate, user }) {
       }
     };
 
-    // Só tentamos buscar os dados se tivermos um usuário logado.
     if (user) {
       fetchSolicitacoes();
     }
-  }, [user]); // O array [user] garante que a busca seja refeita se o usuário mudar.
+  }, [user]);
+
+  // --- NOVA FUNÇÃO AUXILIAR ---
+  // Esta função foi adicionada para deixar a interface mais limpa.
+  // Ela pega a URL completa do arquivo (ex: http://.../sigi-uploads/arquivo.pdf)
+  // e retorna apenas o nome do arquivo (ex: arquivo.pdf).
+  const extractFileName = (url) => {
+    try {
+      return decodeURIComponent(url.split('/').pop().split('?')[0]);
+    } catch (e) {
+      // Se houver algum erro ao processar a URL, retorna um texto genérico.
+      return "Visualizar Arquivo";
+    }
+  };
 
   if (isLoading) {
     return <div style={{ padding: '2rem' }}>Carregando solicitações...</div>;
@@ -57,7 +58,6 @@ export default function DashboardSolicitante({ onNavigate, user }) {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
         <div>
           <h1 style={{ fontSize: '2rem', fontWeight: 'bold' }}>Minhas Solicitações</h1>
-          {/* Saudação personalizada usando o nome do usuário logado */}
           <p style={{ color: '#666' }}>Olá, {user.nome_completo}! Acompanhe seus pedidos.</p>
         </div>
         <button onClick={() => onNavigate('formulario')} style={{ padding: '0.75rem 1.5rem', backgroundColor: '#3366FF', color: 'white', border: 'none', borderRadius: '0.5rem', cursor: 'pointer', fontSize: '1rem' }}>
@@ -67,7 +67,6 @@ export default function DashboardSolicitante({ onNavigate, user }) {
 
       <div style={{ border: '1px solid #ddd', borderRadius: '0.5rem', overflow: 'hidden' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-          {/* O cabeçalho da tabela continua o mesmo */}
           <thead>
             <tr style={{ backgroundColor: '#f9f9f9' }}>
               <th style={{ padding: '1rem', textAlign: 'left', borderBottom: '1px solid #ddd' }}>Data</th>
@@ -82,7 +81,28 @@ export default function DashboardSolicitante({ onNavigate, user }) {
               solicitacoes.map((solicitacao) => (
                 <tr key={solicitacao.id} style={{ borderBottom: '1px solid #ddd' }}>
                   <td style={{ padding: '1rem' }}>{new Date(solicitacao.created_at).toLocaleDateString()}</td>
-                  <td style={{ padding: '1rem', color: '#3366FF', cursor: 'pointer' }}>{solicitacao.url_arquivo_armazenado}</td>
+                  
+                  {/*
+                    --- ESTA É A CORREÇÃO PRINCIPAL ---
+                    Antes, tínhamos apenas um <td> estilizado.
+                    Agora, estamos usando a tag <a>, que é o elemento HTML correto para criar um link.
+
+                    - href={solicitacao.url_arquivo_armazenado}: Define o endereço para onde o link aponta.
+                    - target="_blank": Instrui o navegador a abrir o link em uma nova aba.
+                    - rel="noopener noreferrer": Uma medida de segurança recomendada para links que abrem em nova aba.
+                  */}
+                  <td style={{ padding: '1rem' }}>
+                    <a 
+                      href={solicitacao.url_arquivo_armazenado} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      style={{ color: '#3366FF', textDecoration: 'none' }}
+                    >
+                      {extractFileName(solicitacao.url_arquivo_armazenado)}
+                    </a>
+                  </td>
+                  {/* --- FIM DA CORREÇÃO --- */}
+                  
                   <td style={{ padding: '1rem' }}>{solicitacao.tipo_documento}</td>
                   <td style={{ padding: '1rem' }}>{solicitacao.numero_copias}</td>
                   <td style={{ padding: '1rem' }}>{solicitacao.status}</td>

@@ -5,6 +5,9 @@ const cors = require('cors');
 const session = require('express-session');
 const passport = require('passport');
 const GoogleStrategy = require('passport-google-oauth20').Strategy;
+const multer = require('multer');
+const { S3Client, PutObjectCommand } = require('@aws-sdk/client-s3');
+const crypto = require('crypto');
 
 // --- 2. INICIALIZAÇÕES ---
 const prisma = new PrismaClient();
@@ -18,7 +21,20 @@ app.use(express.json());
 
 const PORT = 4000;
 
-// --- 3. CONFIGURAÇÃO DA SESSÃO ---
+// --- 3. CONFIGURAÇÃO DO MINIO S3 CLIENT ---
+const s3Client = new S3Client({
+  endpoint: `http://${process.env.MINIO_ENDPOINT}:${process.env.MINIO_PORT}`,
+  region: 'us-east-1',
+  credentials: {
+    accessKeyId: process.env.MINIO_ACCESS_KEY,
+    secretAccessKey: process.env.MINIO_SECRET_KEY,
+  },
+  forcePathStyle: true, // Essencial para MinIO
+});
+// Configuração do Multer para guardar o arquivo em memória antes de enviar
+const upload = multer({ storage: multer.memoryStorage() });
+
+// --- 4. CONFIGURAÇÃO DA SESSÃO ---
 app.use(session({
   secret: process.env.SESSION_SECRET,
   resave: false,
@@ -26,7 +42,7 @@ app.use(session({
   cookie: { secure: false, httpOnly: true, maxAge: 24 * 60 * 60 * 1000 } // 1 dia
 }));
 
-// --- 4. CONFIGURAÇÃO DO PASSPORT ---
+// --- 5. CONFIGURAÇÃO DO PASSPORT ---
 app.use(passport.initialize());
 app.use(passport.session());
 
@@ -69,7 +85,7 @@ passport.deserializeUser(async (id, done) => {
   }
 });
 
-// --- 5. ROTAS DE AUTENTICAÇÃO ---
+// --- 6. ROTAS DE AUTENTICAÇÃO ---
 app.get('/auth/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
 
 app.get('/auth/google/callback', 
@@ -89,7 +105,7 @@ app.get('/api/me', (req, res) => {
   }
 });
 
-// --- 6. ROTAS DA API ---
+// --- 7. ROTAS DA API ---
 
 // Rota de Teste
 app.get('/test', async (req, res) => {
@@ -108,26 +124,47 @@ app.get('/test', async (req, res) => {
 });
 
 // Rota para Criar uma Nova Solicitação
-app.post('/api/solicitacoes', async (req, res) => {
+app.post('/api/solicitacoes', upload.single('arquivo'), async (req, res) => {
+  // 'upload.single('arquivo')' é o middleware que processa o upload
   try {
     const { id_usuario, tipo_documento, numero_copias, observacoes } = req.body;
-    const url_arquivo_armazenado = "uploads/arquivo_teste.pdf"; // Valor Fixo por enquanto
-    if (!id_usuario || !tipo_documento || !numero_copias) {
-      return res.status(400).json({ message: "Dados incompletos para criar a solicitação." });
+    const file = req.file; // O arquivo enviado fica disponível em req.file
+
+    if (!file || !id_usuario || !tipo_documento || !numero_copias) {
+      return res.status(400).json({ message: "Dados incompletos. Arquivo é obrigatório." });
     }
+
+    // Gera um nome de arquivo único para evitar conflitos
+    const fileName = `${crypto.randomBytes(16).toString('hex')}-${file.originalname}`;
+
+    // Prepara o comando para enviar o arquivo para o MinIO
+    const command = new PutObjectCommand({
+      Bucket: process.env.MINIO_BUCKET,
+      Key: fileName,
+      Body: file.buffer,
+      ContentType: file.mimetype,
+    });
+
+    // Envia o arquivo
+    await s3Client.send(command);
+
+    // Monta a URL do arquivo para salvar no banco
+    const url_arquivo_armazenado = `${process.env.PUBLIC_URL}:9000/${process.env.MINIO_BUCKET}/${fileName}`;
+   //const url_arquivo_armazenado = `http://localhost:9000/${process.env.MINIO_BUCKET}/${fileName}`;
+
     const novaSolicitacao = await prisma.solicitacao.create({
       data: {
         id_usuario,
-        url_arquivo_armazenado,
+        url_arquivo_armazenado, // Salva a URL do arquivo no MinIO
         tipo_documento,
-        numero_copias,
+        numero_copias: parseInt(numero_copias, 10),
         observacoes,
       },
     });
     res.status(201).json(novaSolicitacao);
   } catch (error) {
-    console.error("Erro ao criar solicitação:", error);
-    res.status(500).json({ message: "Erro interno do servidor ao criar solicitação." });
+    console.error("Erro ao criar solicitação com upload:", error);
+    res.status(500).json({ message: "Erro interno do servidor." });
   }
 });
 
@@ -212,8 +249,105 @@ app.delete('/api/solicitacoes/:id', async (req, res) => {
   }
 });
 
+// Rota para calcular o total de cópias por mês
+app.get('/api/metrics/copias-por-mes', async (req, res) => {
+  try {
+    const result = await prisma.solicitacao.groupBy({
+      by: ['created_at'],
+      _sum: {
+        numero_copias: true,
+      },
+      orderBy: {
+        created_at: 'asc',
+      },
+    });
 
-// --- 7. INÍCIO DO SERVIDOR ---
+    // O groupBy do Prisma retorna datas completas, precisamos agrupar por mês
+    const monthlyData = result.reduce((acc, item) => {
+      const month = new Date(item.created_at).toLocaleString('default', { month: 'short' });
+      const year = new Date(item.created_at).getFullYear();
+      const key = `${month}/${year}`;
+
+      if (!acc[key]) {
+        acc[key] = { name: month, total: 0 };
+      }
+      acc[key].total += item._sum.numero_copias;
+      return acc;
+    }, {});
+
+    res.json(Object.values(monthlyData));
+  } catch (error) {
+    res.status(500).json({ message: 'Erro ao buscar métricas de cópias por mês.' });
+  }
+});
+
+// Rota para calcular a distribuição por tipo de documento
+app.get('/api/metrics/distribuicao-tipo', async (req, res) => {
+    try {
+        const result = await prisma.solicitacao.groupBy({
+            by: ['tipo_documento'],
+            _count: {
+                id: true,
+            },
+        });
+
+        // Formata os dados para a biblioteca de gráficos
+        const formattedData = result.map(item => ({
+            name: item.tipo_documento,
+            value: item._count.id,
+        }));
+
+        res.json(formattedData);
+    } catch (error) {
+        res.status(500).json({ message: 'Erro ao buscar métricas de distribuição.' });
+    }
+});
+
+// Rota para listar os top 5 solicitantes por número de cópias
+app.get('/api/metrics/top-solicitantes', async (req, res) => {
+    try {
+        const result = await prisma.solicitacao.groupBy({
+            by: ['id_usuario'],
+            _sum: {
+                numero_copias: true,
+            },
+            orderBy: {
+                _sum: {
+                    numero_copias: 'desc',
+                },
+            },
+            take: 5, // Pega apenas os 5 primeiros
+        });
+
+        // Busca os nomes dos usuários para enriquecer os dados
+        const userIds = result.map(item => item.id_usuario);
+        const users = await prisma.user.findMany({
+            where: {
+                id: { in: userIds },
+            },
+            select: {
+                id: true,
+                nome_completo: true,
+            }
+        });
+
+        const userMap = users.reduce((acc, user) => {
+            acc[user.id] = user.nome_completo;
+            return acc;
+        }, {});
+
+        const formattedData = result.map(item => ({
+            name: userMap[item.id_usuario] || 'Usuário Desconhecido',
+            total: item._sum.numero_copias,
+        }));
+
+        res.json(formattedData);
+    } catch (error) {
+        res.status(500).json({ message: 'Erro ao buscar top solicitantes.' });
+    }
+});
+
+// --- 8. INÍCIO DO SERVIDOR ---
 app.listen(PORT, () => {
   console.log(`Servidor rodando na porta http://localhost:${PORT}`);
 });

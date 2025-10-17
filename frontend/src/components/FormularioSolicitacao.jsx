@@ -14,11 +14,21 @@ export default function FormularioSolicitacao({ onNavigate, user }) {
   const [observacoes, setObservacoes] = useState('');
   const [error, setError] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [arquivo, setArquivo] = useState(null);
+
+  const handleFileChange = (event) => {
+      setArquivo(event.target.files[0]);
+    }; 
 
   const handleSubmit = async (event) => {
     event.preventDefault();
     setIsSubmitting(true);
     setError(null);
+
+    if (!arquivo) { // Validação do arquivo
+      setError('Por favor, anexe um arquivo.');
+      return;
+    }
 
     if (!tipoDocumento) {
       setError('Por favor, selecione um tipo de documento.');
@@ -27,25 +37,18 @@ export default function FormularioSolicitacao({ onNavigate, user }) {
     }
 
     try {
-      // --- REMOVEMOS O ID FIXO ---
-      // A linha 'const userId = ...' foi removida.
+      // FormData é o formato correto para enviar arquivos e dados de formulário juntos
+      const formData = new FormData();
+      formData.append('id_usuario', user.id);
+      formData.append('tipo_documento', tipoDocumento);
+      formData.append('numero_copias', numeroCopias);
+      formData.append('observacoes', observacoes);
+      formData.append('arquivo', arquivo); // Anexa o arquivo
 
-      const novaSolicitacao = {
-        // --- USAMOS O ID DO USUÁRIO LOGADO ---
-        // Agora, o id_usuario é pego diretamente do objeto 'user'
-        // que recebemos via props.
-        id_usuario: user.id,
-        tipo_documento: tipoDocumento,
-        numero_copias: parseInt(numeroCopias, 10),
-        observacoes: observacoes,
-      };
+      // Enviamos o formData. O Axios configurará os cabeçalhos corretos automaticamente.
+      await api.post('/api/solicitacoes', formData);
 
-      // Enviamos para o endpoint de criação
-      await api.post('/api/solicitacoes', novaSolicitacao);
-
-      // Se deu certo, volta para o dashboard
       onNavigate('dashboard');
-
     } catch (err) {
       setError('Falha ao enviar a solicitação. Tente novamente.');
       console.error("Erro detalhado:", err);
@@ -84,9 +87,11 @@ export default function FormularioSolicitacao({ onNavigate, user }) {
         </div>
 
         <div>
-          <label>Anexar Arquivo *</label>
-          <div style={{ border: '2px dashed #ddd', borderRadius: '0.5rem', padding: '2rem', textAlign: 'center', backgroundColor: '#f9f9f9' }}>
-            <p style={{ color: '#888' }}>(Funcionalidade a ser implementada)</p>
+          <label htmlFor="arquivo" style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>Anexar Arquivo *</label>
+          <div style={{ border: '2px dashed #ddd', borderRadius: '0.5rem', padding: '2rem', textAlign: 'center' }}>
+            <input type="file" id="arquivo" onChange={handleFileChange} />
+            {/* Mostra o nome do arquivo selecionado */}
+            {arquivo && <p style={{ marginTop: '1rem', color: '#555' }}>Arquivo selecionado: {arquivo.name}</p>}
           </div>
         </div>
 

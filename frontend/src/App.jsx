@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import DashboardAdmin from './components/DashboardAdmin';
+import Metricas from './components/Metricas';
 import DashboardSolicitante from './components/DashboardSolicitante';
 import FormularioSolicitacao from './components/FormularioSolicitacao';
 import Login from './components/Login';
@@ -50,6 +51,19 @@ function App() {
 
   // A MÁGICA ACONTECE AQUI: Verificamos a 'role' do usuário
   if (user.role === 'administrador') {
+  // Se for admin, verifica qual página ele quer ver
+    if (paginaAtual === 'dashboard') {
+      return <DashboardAdmin user={user} onNavigate={handleNavigate} />;
+    }
+    if (paginaAtual === 'metrics') {
+      return <Metricas onNavigate={handleNavigate} />;
+    }
+  }
+}
+
+
+/*  
+  if (user.role === 'administrador') {
     // Se for admin, renderiza o DashboardAdmin
     return <DashboardAdmin user={user} />;
   }
@@ -62,5 +76,6 @@ function App() {
     </div>
   );
 }
+*/
 
 export default App;

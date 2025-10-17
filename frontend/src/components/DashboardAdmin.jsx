@@ -7,7 +7,7 @@ const api = axios.create({
   withCredentials: true,
 });
 
-export default function DashboardAdmin({ user }) {
+export default function DashboardAdmin({ user, onNavigate }) {
   // Estados para gerenciar a lista, carregamento e erros
   const [solicitacoes, setSolicitacoes] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -74,6 +74,9 @@ export default function DashboardAdmin({ user }) {
       <div>
         <h1 style={{ fontSize: '2rem', fontWeight: 'bold' }}>Painel do Administrador</h1>
         <p style={{ color: '#666' }}>Olá, {user.nome_completo}! Gerencie todas as solicitações do campus.</p>
+        <button onClick={() => onNavigate('metrics')} style={{ marginTop: '1rem' }}>
+            Ver Métricas
+        </button>
       </div>
 
       {/* Tabela de Gerenciamento */}
