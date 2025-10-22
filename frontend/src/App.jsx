@@ -4,30 +4,27 @@ import DashboardSolicitante from './components/DashboardSolicitante';
 import FormularioSolicitacao from './components/FormularioSolicitacao';
 import Login from './components/Login';
 import DashboardAdmin from './components/DashboardAdmin';
-import Metricas from './components/Metricas'; // Certifique-se de que o componente Metricas está importado
+import Metricas from './components/Metricas';
+import Layout from './components/Layout'; // A importação está correta
 
 const api = axios.create({
-  baseURL: 'http://localhost:4000',
+  baseURL: 'http://10.4.1.188:4000', // Certifique-se que esta URL está correta ou use a variável de ambiente
   withCredentials: true,
 });
 
 function App() {
   const [user, setUser] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
-  
-  // O estado 'view' agora controla tanto a PÁGINA quanto o PAPEL (role)
   const [view, setView] = useState({ pagina: 'dashboard', role: null });
 
-  // Função para mudar a página (ex: de 'dashboard' para 'formulario' ou 'metrics')
   const handleNavigate = (pagina) => {
     setView(prev => ({ ...prev, pagina: pagina }));
   };
 
-  // Função para o admin trocar de "chapéu"
   const handleToggleRoleView = () => {
     setView(prev => ({
       ...prev,
-      pagina: 'dashboard', // Sempre volta para o dashboard ao trocar de visão
+      pagina: 'dashboard',
       role: prev.role === 'administrador' ? 'solicitante' : 'administrador',
     }));
   };
@@ -37,10 +34,11 @@ function App() {
       try {
         const response = await api.get('/api/me');
         setUser(response.data);
-        // Define a visão inicial baseada no role real do usuário
-        setView(prev => ({ ...prev, role: response.data.role })); 
+        setView(prev => ({ ...prev, role: response.data.role }));
       } catch (error) {
         console.log("Nenhum usuário logado na sessão.");
+        // Se der erro (não logado), garantimos que a view role seja null ou 'guest'
+        setView(prev => ({ ...prev, role: null })); 
       } finally {
         setIsLoading(false);
       }
@@ -48,38 +46,56 @@ function App() {
     checkLoginStatus();
   }, []);
 
-  // --- RENDERIZAÇÃO CONDICIONAL ATUALIZADA E CORRIGIDA ---
+  // --- RENDERIZAÇÃO ---
+
+  // 1. Tela de Carregamento Inicial
   if (isLoading) {
     return <div>Carregando...</div>;
   }
 
+  // 2. Se não houver usuário, mostra a Tela de Login (fora do Layout principal)
   if (!user) {
     return <Login />;
   }
-  
-  // LÓGICA PARA A VISÃO DE ADMINISTRADOR (AGORA COMPLETA)
-  if (view.role === 'administrador') {
-    // Se for admin, verifica qual PÁGINA ele quer ver
-    if (view.pagina === 'dashboard') {
-      return <DashboardAdmin user={user} onNavigate={handleNavigate} onToggleRole={handleToggleRoleView} />;
-    }
-    if (view.pagina === 'metrics') {
-      return <Metricas user={user} onNavigate={handleNavigate} />;
-    }
-  }
 
-  // LÓGICA PARA A VISÃO DE SOLICITANTE
-  if (view.role === 'solicitante') {
-    if (view.pagina === 'dashboard') {
-      return <DashboardSolicitante onNavigate={handleNavigate} user={user} onToggleRole={handleToggleRoleView} />;
-    }
-    if (view.pagina === 'formulario') {
-      return <FormularioSolicitacao onNavigate={handleNavigate} user={user} />;
-    }
-  }
+  // 3. Se houver usuário, RENDERIZA O LAYOUT e decide o CONTEÚDO (children)
+  return (
+    // O Layout agora envolve todo o conteúdo das páginas internas
+    <Layout user={user} view={view} onNavigate={handleNavigate} onToggleRole={handleToggleRoleView}>
+      {/* Usamos uma função auto-executável (() => { ... })() para 
+        manter a lógica de decisão dentro do Layout.
+        O Layout receberá o resultado desta função como 'children'.
+      */}
+      {(() => {
+        // LÓGICA PARA A VISÃO DE ADMINISTRADOR
+        if (view.role === 'administrador') {
+          if (view.pagina === 'dashboard') {
+            // Passamos apenas as props que o DashboardAdmin precisa
+            return <DashboardAdmin user={user} />; 
+          }
+          if (view.pagina === 'metrics') {
+             // Passamos apenas as props que o Metricas precisa
+            return <Metricas user={user} />;
+          }
+        }
 
-  // Uma tela de fallback para caso algo dê errado
-  return <div>Ocorreu um erro na renderização da página.</div>;
+        // LÓGICA PARA A VISÃO DE SOLICITANTE
+        if (view.role === 'solicitante') {
+          if (view.pagina === 'dashboard') {
+             // Passamos apenas as props que o DashboardSolicitante precisa
+            return <DashboardSolicitante onNavigate={handleNavigate} user={user} />;
+          }
+          if (view.pagina === 'formulario') {
+             // Passamos apenas as props que o FormularioSolicitacao precisa
+            return <FormularioSolicitacao onNavigate={handleNavigate} user={user} />;
+          }
+        }
+
+        // Se nenhuma condição for atendida (erro de lógica ou estado inesperado)
+        return <div>Página não encontrada ou erro na lógica de visualização.</div>;
+      })()}
+    </Layout>
+  );
 }
 
 export default App;
