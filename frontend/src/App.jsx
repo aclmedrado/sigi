@@ -8,7 +8,7 @@ import Metricas from './components/Metricas';
 import Layout from './components/Layout'; // A importação está correta
 
 const api = axios.create({
-  baseURL: 'http://10.4.1.188:4000', // Certifique-se que esta URL está correta ou use a variável de ambiente
+  baseURL: 'http://localhost:4000', // Certifique-se que esta URL está correta ou use a variável de ambiente
   withCredentials: true,
 });
 
