@@ -1,12 +1,42 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+// Importamos ícones
+import { PlusCircle, Download, UserCircle, Settings } from 'lucide-react';
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
 
-// A instância do axios agora está configurada para enviar cookies,
-// pois é assim que o backend saberá quem está logado.
+// Configuração do Axios
 const api = axios.create({
-  baseURL: 'http://localhost:4000',
+  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000',
   withCredentials: true,
 });
+
+// Função auxiliar para definir a cor do Badge de Status
+const getStatusClasses = (status) => {
+  switch (status) {
+    case "Pendente":
+      // Fundo amarelo claro, texto amarelo escuro, borda amarela
+      return "bg-yellow-100 text-yellow-800 border border-yellow-200";
+    case "Impresso":
+      // Fundo verde claro, texto verde escuro, borda verde
+      return "bg-green-100 text-green-800 border border-green-200";
+    case "Recusado":
+      // Fundo vermelho claro, texto vermelho escuro, borda vermelha
+      return "bg-red-100 text-red-800 border border-red-200";
+    default:
+      // Estilo padrão cinza
+      return "bg-gray-100 text-gray-800 border border-gray-200";
+  }
+};
+
+// Função auxiliar para extrair o nome do arquivo da URL
+const extractFileName = (url) => {
+  try {
+    return decodeURIComponent(url.split('/').pop().split('?')[0]);
+  } catch (e) {
+    return "Visualizar Arquivo";
+  }
+};
 
 export default function DashboardSolicitante({ onNavigate, user, onToggleRole }) {
   const [solicitacoes, setSolicitacoes] = useState([]);
@@ -15,8 +45,9 @@ export default function DashboardSolicitante({ onNavigate, user, onToggleRole })
 
   useEffect(() => {
     const fetchSolicitacoes = async () => {
+      setIsLoading(true);
+      setError(null);
       try {
-        // A chamada de API agora usa a sessão do usuário no backend.
         const response = await api.get('/api/solicitacoes/me');
         setSolicitacoes(response.data);
       } catch (err) {
@@ -32,98 +63,131 @@ export default function DashboardSolicitante({ onNavigate, user, onToggleRole })
     }
   }, [user]);
 
-  // --- NOVA FUNÇÃO AUXILIAR ---
-  // Esta função foi adicionada para deixar a interface mais limpa.
-  // Ela pega a URL completa do arquivo (ex: http://.../sigi-uploads/arquivo.pdf)
-  // e retorna apenas o nome do arquivo (ex: arquivo.pdf).
-  const extractFileName = (url) => {
-    try {
-      return decodeURIComponent(url.split('/').pop().split('?')[0]);
-    } catch (e) {
-      // Se houver algum erro ao processar a URL, retorna um texto genérico.
-      return "Visualizar Arquivo";
-    }
-  };
-
+  // ----- Renderização Condicional para Loading e Erro -----
   if (isLoading) {
-    return <div style={{ padding: '2rem' }}>Carregando solicitações...</div>;
+    // Usamos classes Tailwind para estilizar a mensagem de carregamento
+    return (
+      <div className="flex justify-center items-center h-64">
+        <p className="text-gray-500">Carregando solicitações...</p>
+        {/* Poderíamos adicionar um spinner aqui */}
+      </div>
+    );
   }
 
   if (error) {
-    return <div style={{ padding: '2rem', color: 'red' }}>{error}</div>;
+    return (
+      <div className="p-8 text-center bg-red-50 border border-red-200 rounded-lg">
+        <p className="text-red-700 font-medium">{error}</p>
+      </div>
+    );
   }
+  // ----- Fim da Renderização Condicional -----
 
   return (
-    <div style={{ fontFamily: 'sans-serif', padding: '2rem' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
+    // Não precisamos mais de padding aqui, pois o Layout já fornece
+    <div>
+      {/* Cabeçalho da Página */}
+      {/* 'flex flex-col sm:flex-row': Empilha em telas pequenas, lado a lado em maiores. */}
+      {/* 'justify-between items-start sm:items-center': Alinhamento responsivo. */}
+      {/* 'mb-6 gap-4': Margem inferior e espaço entre elementos. */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
         <div>
-          <h1 style={{ fontSize: '2rem', fontWeight: 'bold' }}>Minhas Solicitações</h1>
-          <p style={{ color: '#666' }}>Olá, {user.nome_completo}! Acompanhe seus pedidos.</p>
+          {/* Título */}
+          <h1 className="text-2xl lg:text-3xl font-bold text-gray-800">Minhas Solicitações</h1>
+          {/* Descrição */}
+          <p className="text-gray-500 mt-1">Olá, {user.nome_completo}! Acompanhe o status dos seus pedidos.</p>
         </div>
-        {/* Este botão só aparece se o usuário for um admin de verdade */}
-        {user.role === 'administrador' && (
-          <button onClick={onToggleRole} style={{ marginRight: '1rem', backgroundColor: '#007bff', color: 'white' }}>
-            Voltar para Visão de Admin
+        {/* Botões de Ação */}
+        {/* 'flex items-center gap-2': Alinha botões lado a lado. */}
+        {/* 'w-full sm:w-auto': Ocupa largura total em telas pequenas. */}
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          {/* Botão Voltar para Visão Admin (Condicional) */}
+          {/* {user.role === 'administrador' && (
+            // Estilo 'outline' com cores neutras
+            <button
+              onClick={onToggleRole}
+              className="bg-white hover:bg-gray-100 text-gray-700 font-medium py-2 px-4 border border-gray-300 rounded-lg shadow-sm flex items-center gap-1 transition duration-150 ease-in-out"
+            >
+              <Settings size={16}/> Voltar Visão Admin
+            </button>
+           )} */}
+          {/* Botão Nova Solicitação */}
+          {/* Estilo primário (azul) com efeito hover */}
+          <button
+            onClick={() => onNavigate('formulario')}
+            className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg shadow-sm flex items-center gap-1 transition duration-150 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+           >
+            <PlusCircle className="h-5 w-5" />
+            Nova Solicitação
           </button>
-        )}
-        <button onClick={() => onNavigate('formulario')} style={{ padding: '0.75rem 1.5rem', backgroundColor: '#3366FF', color: 'white', border: 'none', borderRadius: '0.5rem', cursor: 'pointer', fontSize: '1rem' }}>
-          + Nova Solicitação
-        </button>
+        </div>
       </div>
 
-      <div style={{ border: '1px solid #ddd', borderRadius: '0.5rem', overflow: 'hidden' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-          <thead>
-            <tr style={{ backgroundColor: '#f9f9f9' }}>
-              <th style={{ padding: '1rem', textAlign: 'left', borderBottom: '1px solid #ddd' }}>Data</th>
-              <th style={{ padding: '1rem', textAlign: 'left', borderBottom: '1px solid #ddd' }}>Arquivo</th>
-              <th style={{ padding: '1rem', textAlign: 'left', borderBottom: '1px solid #ddd' }}>Tipo</th>
-              <th style={{ padding: '1rem', textAlign: 'left', borderBottom: '1px solid #ddd' }}>Cópias</th>
-              <th style={{ padding: '1rem', textAlign: 'left', borderBottom: '1px solid #ddd' }}>Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {solicitacoes.length > 0 ? (
-              solicitacoes.map((solicitacao) => (
-                <tr key={solicitacao.id} style={{ borderBottom: '1px solid #ddd' }}>
-                  <td style={{ padding: '1rem' }}>{new Date(solicitacao.created_at).toLocaleDateString()}</td>
-                  
-                  {/*
-                    --- ESTA É A CORREÇÃO PRINCIPAL ---
-                    Antes, tínhamos apenas um <td> estilizado.
-                    Agora, estamos usando a tag <a>, que é o elemento HTML correto para criar um link.
-
-                    - href={solicitacao.url_arquivo_armazenado}: Define o endereço para onde o link aponta.
-                    - target="_blank": Instrui o navegador a abrir o link em uma nova aba.
-                    - rel="noopener noreferrer": Uma medida de segurança recomendada para links que abrem em nova aba.
-                  */}
-                  <td style={{ padding: '1rem' }}>
-                    <a 
-                      href={solicitacao.url_arquivo_armazenado} 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      style={{ color: '#3366FF', textDecoration: 'none' }}
-                    >
-                      {extractFileName(solicitacao.url_arquivo_armazenado)}
-                    </a>
-                  </td>
-                  {/* --- FIM DA CORREÇÃO --- */}
-                  
-                  <td style={{ padding: '1rem' }}>{solicitacao.tipo_documento}</td>
-                  <td style={{ padding: '1rem' }}>{solicitacao.numero_copias}</td>
-                  <td style={{ padding: '1rem' }}>{solicitacao.status}</td>
-                </tr>
-              ))
-            ) : (
+      {/* Card contendo a Tabela */}
+      {/* 'bg-white rounded-lg shadow overflow-hidden': Estilo de card */}
+      <div className="bg-white rounded-lg shadow overflow-hidden">
+        {/* 'overflow-x-auto': Permite rolagem horizontal em telas pequenas */}
+        <div className="overflow-x-auto">
+          {/* Tabela com estilo básico */}
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
               <tr>
-                <td colSpan="5" style={{ padding: '2rem', textAlign: 'center', color: '#888' }}>
-                  Nenhuma solicitação encontrada.
-                </td>
+                {/* Cabeçalhos da Tabela com padding, alinhamento e estilo de texto */}
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Data</th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Arquivo</th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tipo</th>
+                <th scope="col" className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Cópias</th>
+                <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
               </tr>
-            )}
-          </tbody>
-        </table>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {/* Verifica se há solicitações antes de mapear */}
+              {solicitacoes.length > 0 ? (
+                solicitacoes.map((solicitacao) => (
+                  <tr key={solicitacao.id} className="hover:bg-gray-50"> {/* Efeito hover na linha */}
+                    {/* Células da Tabela com padding e estilo de texto */}
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                      {format(new Date(solicitacao.created_at), "dd/MM/yy HH:mm", { locale: ptBR })}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      <a
+                        href={solicitacao.url_arquivo_armazenado}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-2 text-blue-600 hover:text-blue-800 hover:underline"
+                        title={extractFileName(solicitacao.url_arquivo_armazenado)}
+                      >
+                        <Download size={16} />
+                        {/* Limita o nome do arquivo para não quebrar o layout */}
+                        <span className="truncate max-w-[150px] sm:max-w-[200px]">
+                          {extractFileName(solicitacao.url_arquivo_armazenado)}
+                        </span>
+                      </a>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{solicitacao.tipo_documento}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center">{solicitacao.numero_copias}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                      {/* Badge (indicador) colorido */}
+                      {/* 'px-2 inline-flex text-xs leading-5 font-semibold rounded-full': Estilo base do badge */}
+                      <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusClasses(solicitacao.status)}`}>
+                        {solicitacao.status}
+                      </span>
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                // Mensagem se não houver solicitações
+                <tr>
+                  <td colSpan="5" className="px-6 py-10 text-center text-sm text-gray-500">
+                    Nenhuma solicitação encontrada. Clique em "+ Nova Solicitação" para criar uma.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );
 }
+
