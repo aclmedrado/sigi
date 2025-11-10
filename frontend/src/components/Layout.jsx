@@ -44,7 +44,7 @@ export default function Layout({ children, user, view, onToggleRole, onNavigate 
             
             {/* Navegação Principal (Condicional para Admin) */}
             {/* Mostra apenas se o usuário REAL for admin */}
-            {user.role === 'administrador' && ( 
+            {user.role === 'ADMIN' && ( 
                <nav className="hidden md:flex items-center gap-1"> {/* Diminui o gap */}
                  {/* Botões de Navegação */}
                  {/* 'text-gray-600 hover:text-blue-600 font-medium px-3 py-2 rounded-md text-sm': Estilos base + efeito hover. */}
@@ -52,14 +52,14 @@ export default function Layout({ children, user, view, onToggleRole, onNavigate 
                  <button 
                    onClick={() => onNavigate('dashboard')} 
                    // Destaca se a visão ativa for 'administrador' e a página for 'dashboard'
-                   className={`font-medium px-3 py-2 rounded-md text-sm flex items-center gap-1 ${activeRoleView === 'administrador' && view.pagina === 'dashboard' ? 'text-blue-600 bg-blue-50' : 'text-gray-600 hover:text-blue-600 hover:bg-gray-50'}`}
+                   className={`font-medium px-3 py-2 rounded-md text-sm flex items-center gap-1 ${activeRoleView === 'ADMIN' && view.pagina === 'dashboard' ? 'text-blue-600 bg-blue-50' : 'text-gray-600 hover:text-blue-600 hover:bg-gray-50'}`}
                  >
                    <LayoutDashboard size={16}/> Dashboard
                  </button>
                  <button 
                    onClick={() => onNavigate('metrics')} 
                    // Destaca se a visão ativa for 'administrador' e a página for 'metrics'
-                   className={`font-medium px-3 py-2 rounded-md text-sm flex items-center gap-1 ${activeRoleView === 'administrador' && view.pagina === 'metrics' ? 'text-blue-600 bg-blue-50' : 'text-gray-600 hover:text-blue-600 hover:bg-gray-50'}`}
+                   className={`font-medium px-3 py-2 rounded-md text-sm flex items-center gap-1 ${activeRoleView === 'ADMIN' && view.pagina === 'metrics' ? 'text-blue-600 bg-blue-50' : 'text-gray-600 hover:text-blue-600 hover:bg-gray-50'}`}
                  >
                    <BarChart3 size={16}/> Métricas
                  </button>
@@ -71,15 +71,15 @@ export default function Layout({ children, user, view, onToggleRole, onNavigate 
           {/* 'flex items-center gap-4': Alinha os ícones e o avatar. */}
           <div className="flex items-center gap-4">
             {/* Botão para Trocar Visão (Só aparece para Admin) */}
-            {user.role === 'administrador' && (
+            {user.role === 'ADMIN' && (
               <button 
                 onClick={onToggleRole} 
-                title={activeRoleView === 'administrador' ? 'Ver como Solicitante' : 'Voltar para Visão Admin'} 
+                title={activeRoleView === 'ADMIN' ? 'Ver como SOLICITANTE' : 'Voltar para Visão ADMIN'} 
                 // Estilos do botão: padding, borda arredondada, cor do texto, fundo ao passar o mouse, foco para acessibilidade
                 className="p-2 rounded-full text-gray-500 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
               >
                 {/* Mostra um ícone diferente dependendo da visão ativa */}
-                {activeRoleView === 'administrador' ? <Users size={20} /> : <Settings size={20} />}
+                {activeRoleView === 'ADMIN' ? <Users size={20} /> : <Settings size={20} />}
               </button>
             )}
             {/* Botão de Logout */}

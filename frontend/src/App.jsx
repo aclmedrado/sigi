@@ -8,7 +8,7 @@ import Metricas from './components/Metricas';
 import Layout from './components/Layout'; // A importação está correta
 
 const api = axios.create({
-  baseURL: 'http://localhost:4000', // Certifique-se que esta URL está correta ou use a variável de ambiente
+  baseURL: import.meta.env.VITE_API_BASE_URL, // Certifique-se que esta URL está correta ou use a variável de ambiente ex: http://localhost:4000
   withCredentials: true,
 });
 
@@ -25,7 +25,7 @@ function App() {
     setView(prev => ({
       ...prev,
       pagina: 'dashboard',
-      role: prev.role === 'administrador' ? 'solicitante' : 'administrador',
+      role: prev.role === 'ADMIN' ? 'SOLICITANTE' : 'ADMIN',
     }));
   };
 
@@ -68,7 +68,7 @@ function App() {
       */}
       {(() => {
         // LÓGICA PARA A VISÃO DE ADMINISTRADOR
-        if (view.role === 'administrador') {
+        if (view.role === 'ADMIN') {
           if (view.pagina === 'dashboard') {
             // Passamos apenas as props que o DashboardAdmin precisa
             return <DashboardAdmin user={user} />; 
@@ -80,7 +80,7 @@ function App() {
         }
 
         // LÓGICA PARA A VISÃO DE SOLICITANTE
-        if (view.role === 'solicitante') {
+        if (view.role === 'SOLICITANTE') {
           if (view.pagina === 'dashboard') {
              // Passamos apenas as props que o DashboardSolicitante precisa
             return <DashboardSolicitante onNavigate={handleNavigate} user={user} />;

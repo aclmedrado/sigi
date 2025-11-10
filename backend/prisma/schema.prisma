@@ -11,10 +11,15 @@ model User {
   id            String        @id @default(cuid())
   email         String        @unique
   nome_completo String?
-  role          String        @default("solicitante")
+  role          Role          @default(SOLICITANTE)
   foto_perfil   String?
   solicitacoes  Solicitacao[]
   created_at    DateTime      @default(now())
+}
+
+enum Role {
+  SOLICITANTE
+  ADMIN
 }
 
 model Solicitacao {

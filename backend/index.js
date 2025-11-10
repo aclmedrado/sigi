@@ -8,13 +8,14 @@ const GoogleStrategy = require('passport-google-oauth20').Strategy;
 const multer = require('multer');
 const { S3Client, PutObjectCommand } = require('@aws-sdk/client-s3');
 const crypto = require('crypto');
+const pdf = require('pdf-parse');
 
 // --- 2. INICIALIZAÇÕES ---
 const prisma = new PrismaClient();
 const app = express();
 
 app.use(cors({
-  origin: 'http://localhost:5173', // Permite que o frontend acesse a API
+  origin: process.env.FRONTEND_URL, // Permite que o frontend acesse a API
   credentials: true, // Permite o envio de cookies de sessão
 }));
 app.use(express.json());
@@ -49,7 +50,7 @@ app.use(passport.session());
 passport.use(new GoogleStrategy({
     clientID: process.env.GOOGLE_CLIENT_ID,
     clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-    callbackURL: "http://localhost:4000/auth/google/callback"
+    callbackURL: "http://sigi.ifg.edu.br:4000/auth/google/callback"
   },
   async (accessToken, refreshToken, profile, done) => {
     try {
@@ -62,6 +63,7 @@ passport.use(new GoogleStrategy({
             email: profile.emails[0].value,
             nome_completo: profile.displayName,
             foto_perfil: profile.photos[0].value,
+            role: 'SOLICITANTE',
           }
         });
       }
@@ -91,8 +93,8 @@ app.get('/auth/google', passport.authenticate('google', { scope: ['profile', 'em
 app.get('/auth/google/callback', 
   passport.authenticate('google', { failureRedirect: '/login/failed' }),
   (req, res) => {
-    // Redireciona de volta para o frontend após o sucesso do login
-    res.redirect('http://localhost:5173');
+    // Redireciona de volta para o frontend após o sucesso do login ex: http://localhost:5173
+    res.redirect(process.env.FRONTEND_URL);
   }
 );
 
@@ -103,6 +105,33 @@ app.get('/api/me', (req, res) => {
   } else {
     res.status(401).json({ message: 'Não autenticado' });
   }
+});
+
+// Rota para Logout
+app.get('/auth/logout', (req, res, next) => {
+  // O Passport.js adiciona esta função .logout() ao objeto req.
+  // Ela remove o req.user e limpa a sessão de login.
+  req.logout((err) => {
+    if (err) { 
+      // Se houver um erro ao fazer logout, passamos para o próximo middleware
+      return next(err); 
+    }
+    
+    // Após o logout, destruímos a sessão do express-session
+    req.session.destroy((destroyErr) => {
+      if (destroyErr) {
+        // Se houver erro ao destruir a sessão, logamos
+        console.error("Erro ao destruir sessão:", destroyErr);
+        return next(destroyErr);
+      }
+      
+      // Limpa o cookie de sessão do navegador
+      res.clearCookie('connect.sid'); // 'connect.sid' é o nome padrão do cookie de sessão
+
+      // Redireciona o usuário de volta para a página inicial (login) do frontend
+      res.redirect(process.env.FRONTEND_URL);
+    });
+  });
 });
 
 // --- 7. ROTAS DA API ---
@@ -125,14 +154,28 @@ app.get('/test', async (req, res) => {
 
 // Rota para Criar uma Nova Solicitação
 app.post('/api/solicitacoes', upload.single('arquivo'), async (req, res) => {
-  // 'upload.single('arquivo')' é o middleware que processa o upload
   try {
-    const { id_usuario, tipo_documento, numero_copias, observacoes } = req.body;
-    const file = req.file; // O arquivo enviado fica disponível em req.file
+    const { id_usuario, tipo_documento, numero_copias: copias_solicitadas, observacoes } = req.body;
+    const file = req.file;
 
-    if (!file || !id_usuario || !tipo_documento || !numero_copias) {
+    if (!file || !id_usuario || !tipo_documento || !copias_solicitadas) {
       return res.status(400).json({ message: "Dados incompletos. Arquivo é obrigatório." });
     }
+    
+    // --- INÍCIO DA LÓGICA CORRIGIDA (USANDO 'require') ---
+    
+    // 1. Pegamos o buffer do arquivo PDF que está na memória
+    const fileBuffer = file.buffer;
+
+    // 2. Usamos o 'pdf-parse' (via 'require') para ler o buffer
+    // A variável 'pdf' agora é a função que esperamos
+    const pdfData = await pdf(fileBuffer); 
+    const numPaginasPDF = pdfData.numpages; // <-- Número de páginas do PDF
+
+    // 3. Calculamos o total de impressões
+    const numCopiasSolicitadas = parseInt(copias_solicitadas, 10);
+    const totalImpressoesCalculado = numPaginasPDF * numCopiasSolicitadas;
+    // --- FIM DA LÓGICA CORRIGIDA ---
 
     // Gera um nome de arquivo único para evitar conflitos
     const fileName = `${crypto.randomBytes(16).toString('hex')}-${file.originalname}`;
@@ -141,7 +184,7 @@ app.post('/api/solicitacoes', upload.single('arquivo'), async (req, res) => {
     const command = new PutObjectCommand({
       Bucket: process.env.MINIO_BUCKET,
       Key: fileName,
-      Body: file.buffer,
+      Body: file.buffer, 
       ContentType: file.mimetype,
     });
 
@@ -150,21 +193,20 @@ app.post('/api/solicitacoes', upload.single('arquivo'), async (req, res) => {
 
     // Monta a URL do arquivo para salvar no banco
     const url_arquivo_armazenado = `${process.env.PUBLIC_URL}:9000/${process.env.MINIO_BUCKET}/${fileName}`;
-   //const url_arquivo_armazenado = `http://localhost:9000/${process.env.MINIO_BUCKET}/${fileName}`;
 
     const novaSolicitacao = await prisma.solicitacao.create({
       data: {
         id_usuario,
-        url_arquivo_armazenado, // Salva a URL do arquivo no MinIO
+        url_arquivo_armazenado, 
         tipo_documento,
-        numero_copias: parseInt(numero_copias, 10),
+        numero_copias: totalImpressoesCalculado, // <-- Salvamos o valor calculado
         observacoes,
       },
     });
     res.status(201).json(novaSolicitacao);
   } catch (error) {
     console.error("Erro ao criar solicitação com upload:", error);
-    res.status(500).json({ message: "Erro interno do servidor." });
+    res.status(500).json({ message: "Erro interno do servidor. O PDF pode estar corrompido." });
   }
 });
 
