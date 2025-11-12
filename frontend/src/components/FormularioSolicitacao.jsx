@@ -12,6 +12,7 @@ export default function FormularioSolicitacao({ onNavigate, user }) {
   const [numeroCopias, setNumeroCopias] = useState(1);
   const [observacoes, setObservacoes] = useState('');
   const [arquivo, setArquivo] = useState(null);
+  const [modoImpressao, setModoImpressao] = useState('FRENTE_VERSO');
   const [error, setError] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -60,6 +61,7 @@ export default function FormularioSolicitacao({ onNavigate, user }) {
       formData.append('id_usuario', user.id);
       formData.append('tipo_documento', tipoDocumento);
       formData.append('numero_copias', numeroCopias);
+      formData.append('modo_impressao', modoImpressao);
       formData.append('observacoes', observacoes);
       formData.append('arquivo', arquivo); 
 
@@ -119,6 +121,37 @@ export default function FormularioSolicitacao({ onNavigate, user }) {
             required
             className="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm p-2"
           />
+        </div>
+
+        {/* NOVO CAMPO: MODO DE IMPRESSÃO */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Modo de Impressão <span className="text-red-600">*</span>
+          </label>
+          <div className="flex items-center space-x-4 mt-2">
+            <label className="flex items-center">
+              <input
+                type="radio"
+                name="modo-impressao"
+                value="FRENTE_VERSO"
+                checked={modoImpressao === 'FRENTE_VERSO'}
+                onChange={(e) => setModoImpressao(e.target.value)}
+                className="form-radio h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+              />
+              <span className="ml-2 text-sm text-gray-700">Frente e Verso</span>
+            </label>
+            <label className="flex items-center">
+              <input
+                type="radio"
+                name="modo-impressao"
+                value="FRENTE"
+                checked={modoImpressao === 'FRENTE'}
+                onChange={(e) => setModoImpressao(e.target.value)}
+                className="form-radio h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+              />
+              <span className="ml-2 text-sm text-gray-700">Somente Frente</span>
+            </label>
+          </div>
         </div>
 
         <div>

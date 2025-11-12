@@ -155,7 +155,7 @@ app.get('/test', async (req, res) => {
 // Rota para Criar uma Nova Solicitação
 app.post('/api/solicitacoes', upload.single('arquivo'), async (req, res) => {
   try {
-    const { id_usuario, tipo_documento, numero_copias: copias_solicitadas, observacoes } = req.body;
+    const { id_usuario, tipo_documento, numero_copias: copias_solicitadas, observacoes, modo_impressao } = req.body;
     const file = req.file;
 
     if (!file || !id_usuario || !tipo_documento || !copias_solicitadas) {
@@ -194,12 +194,16 @@ app.post('/api/solicitacoes', upload.single('arquivo'), async (req, res) => {
     // Monta a URL do arquivo para salvar no banco
     const url_arquivo_armazenado = `${process.env.PUBLIC_URL}:9000/${process.env.MINIO_BUCKET}/${fileName}`;
 
+
+
     const novaSolicitacao = await prisma.solicitacao.create({
       data: {
         id_usuario,
         url_arquivo_armazenado, 
         tipo_documento,
         numero_copias: totalImpressoesCalculado, // <-- Salvamos o valor calculado
+        copias_solicitadas: numCopiasSolicitadas, //<-- Salva o Solicitado
+        modo_impressao: modo_impressao,
         observacoes,
       },
     });

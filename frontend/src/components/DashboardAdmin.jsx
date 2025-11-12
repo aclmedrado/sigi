@@ -142,6 +142,7 @@ export default function DashboardAdmin({ user }) {
                     <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Solicitante</th>
                     <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Arquivo</th>
                     <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tipo</th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Modo</th>
                     <th scope="col" className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Cópias</th>
                     <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                     <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Ações</th>
@@ -176,8 +177,12 @@ export default function DashboardAdmin({ user }) {
                             ? 'Doc. Adm.'
                             : solicitacao.tipo_documento}
                         </td>
+                        {/* <-- NOVA CÉLULA (use F/V para economizar espaço) --> */}
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {solicitacao.modo_impressao === 'FRENTE_VERSO' ? 'F/V' : 'Frente'}
+                        </td>
                         {/* Cópias (mantém nowrap) */}
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center">{solicitacao.numero_copias}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center">{solicitacao.copias_solicitadas}</td>
                         {/* Status (mantém nowrap) */}
                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                           <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusClasses(solicitacao.status)}`}>

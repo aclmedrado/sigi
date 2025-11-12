@@ -165,7 +165,7 @@ export default function DashboardSolicitante({ onNavigate, user, onToggleRole })
                       </a>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{solicitacao.tipo_documento}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center">{solicitacao.numero_copias}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center">{solicitacao.copias_solicitadas}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       {/* Badge (indicador) colorido */}
                       {/* 'px-2 inline-flex text-xs leading-5 font-semibold rounded-full': Estilo base do badge */}
