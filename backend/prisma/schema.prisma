@@ -31,7 +31,7 @@ model Solicitacao {
   id                     String   @id @default(cuid())
   User                   User     @relation(fields: [id_usuario], references: [id])
   id_usuario             String
-  url_arquivo_armazenado String
+  url_arquivo_armazenado String?
   tipo_documento         String
   numero_copias          Int
   copias_solicitadas     Int

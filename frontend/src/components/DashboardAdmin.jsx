@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 // Importamos apenas os ícones
-import { Download, Edit, Loader2 } from 'lucide-react';
+import { Download, Edit, Loader2, FileText, PlusCircle } from 'lucide-react';
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -25,7 +25,7 @@ const extractFileName = (url) => {
   catch (e) { return "Visualizar Arquivo"; }
 };
 
-export default function DashboardAdmin({ user }) {
+export default function DashboardAdmin({ user, onNavigate }) {
   const [solicitacoes, setSolicitacoes] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -122,9 +122,20 @@ export default function DashboardAdmin({ user }) {
     <>
       <div>
         {/* Cabeçalho */}
-        <div className="mb-6">
-          <h1 className="text-2xl lg:text-3xl font-bold text-gray-800">Painel do Administrador</h1>
-          <p className="text-gray-500 mt-1">Olá, {user?.nome_completo || user?.email}! Gerencie todas as solicitações do campus.</p>
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+          <div>
+            <h1 className="text-2xl lg:text-3xl font-bold text-gray-800">Painel do Administrador</h1>
+            <p className="text-gray-500 mt-1">Olá, {user?.nome_completo || user?.email}! Gerencie todas as solicitações do campus.</p>
+          </div>
+    
+          {/* --- BOTÃO ADICIONADO --- */}
+          <button
+            onClick={() => onNavigate('manual')}
+            className="w-full sm:w-auto bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded-lg shadow-sm flex items-center justify-center gap-2 transition duration-150 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+          >
+            <PlusCircle className="h-5 w-5" />
+            Registrar Solicitação Manual
+          </button>
         </div>
 
         {/* Card da Tabela */}
@@ -142,7 +153,7 @@ export default function DashboardAdmin({ user }) {
                     <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Solicitante</th>
                     <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Arquivo</th>
                     <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tipo</th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Modo</th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Impressão</th>
                     <th scope="col" className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Cópias</th>
                     <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                     <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Ações</th>
@@ -163,13 +174,25 @@ export default function DashboardAdmin({ user }) {
                         </td>
                         {/* Arquivo (mantém nowrap, mas reduz max-w) */}
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          <a href={solicitacao.url_arquivo_armazenado} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-blue-600 hover:text-blue-800 hover:underline" title={extractFileName(solicitacao.url_arquivo_armazenado)}>
-                            <Download size={16} />
-                            {/* Largura máxima reduzida */}
-                            <span className="truncate max-w-[100px] sm:max-w-[150px]">
-                              {extractFileName(solicitacao.url_arquivo_armazenado)}
+                          {solicitacao.url_arquivo_armazenado ? (
+                            <a
+                              href={solicitacao.url_arquivo_armazenado}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex items-center gap-2 text-blue-600 hover:text-blue-800 hover:underline"
+                              title={extractFileName(solicitacao.url_arquivo_armazenado)}
+                            >
+                              <Download size={16} />
+                              <span className="truncate max-w-[100px] sm:max-w-[150px]">
+                                {extractFileName(solicitacao.url_arquivo_armazenado)}
+                              </span>
+                            </a>
+                          ) : (
+                            <span className="flex items-center gap-2 text-gray-600 font-medium">
+                              <FileText size={16} />
+                              Documento Físico
                             </span>
-                          </a>
+                          )}
                         </td>
                         {/* Tipo (REMOVE nowrap e adiciona lógica de abreviação) */}
                         <td className="px-6 py-4 text-sm text-gray-500">
@@ -179,7 +202,7 @@ export default function DashboardAdmin({ user }) {
                         </td>
                         {/* <-- NOVA CÉLULA (use F/V para economizar espaço) --> */}
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {solicitacao.modo_impressao === 'FRENTE_VERSO' ? 'F/V' : 'Frente'}
+                          {solicitacao.modo_impressao === 'FRENTE_VERSO' ? 'Frente e Verso' : 'Frente'}
                         </td>
                         {/* Cópias (mantém nowrap) */}
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center">{solicitacao.copias_solicitadas}</td>

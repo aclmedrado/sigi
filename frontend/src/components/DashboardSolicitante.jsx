@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 // Importamos ícones
-import { PlusCircle, Download, UserCircle, Settings } from 'lucide-react';
+import { PlusCircle, Download, UserCircle, Settings, FileText } from 'lucide-react';
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -150,19 +150,25 @@ export default function DashboardSolicitante({ onNavigate, user, onToggleRole })
                       {format(new Date(solicitacao.created_at), "dd/MM/yy HH:mm", { locale: ptBR })}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      <a
-                        href={solicitacao.url_arquivo_armazenado}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-2 text-blue-600 hover:text-blue-800 hover:underline"
-                        title={extractFileName(solicitacao.url_arquivo_armazenado)}
-                      >
-                        <Download size={16} />
-                        {/* Limita o nome do arquivo para não quebrar o layout */}
-                        <span className="truncate max-w-[150px] sm:max-w-[200px]">
-                          {extractFileName(solicitacao.url_arquivo_armazenado)}
+                      {solicitacao.url_arquivo_armazenado ? (
+                        <a
+                          href={solicitacao.url_arquivo_armazenado}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-2 text-blue-600 hover:text-blue-800 hover:underline"
+                          title={extractFileName(solicitacao.url_arquivo_armazenado)}
+                        >
+                          <Download size={16} />
+                          <span className="truncate max-w-[150px] sm:max-w-[200px]">
+                            {extractFileName(solicitacao.url_arquivo_armazenado)}
+                          </span>
+                        </a>
+                      ) : (
+                        <span className="flex items-center gap-2 text-gray-600 font-medium">
+                          <FileText size={16} />
+                          Documento Físico
                         </span>
-                      </a>
+                      )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{solicitacao.tipo_documento}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center">{solicitacao.copias_solicitadas}</td>

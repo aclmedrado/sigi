@@ -87,6 +87,16 @@ passport.deserializeUser(async (id, done) => {
   }
 });
 
+
+// -- Middleware de Admin: Função para verificar se o usuário é admin.
+const isAdmin = (req, res, next) => {
+  if (req.user && req.user.role === 'ADMIN') {
+    next();
+  } else {
+  res.status(403).json({ message: "Acesso negado. Apenas Administradores."});
+  }
+};
+
 // --- 6. ROTAS DE AUTENTICAÇÃO ---
 app.get('/auth/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
 
@@ -97,6 +107,19 @@ app.get('/auth/google/callback',
     res.redirect(process.env.FRONTEND_URL);
   }
 );
+
+// Rota para Admin listar todos os usuários (para o formulário manual)
+app.get('/api/users', isAdmin, async (req, res) => {
+  try {
+    const users = await prisma.user.findMany({
+      orderBy: { nome_completo: 'asc' },
+      select: { id: true, nome_completo: true, email: true }
+    });
+    res.json(users);
+  } catch (error) {
+    res.status(500).json({ message: "Erro ao buscar usuários." });
+  }
+});
 
 // Rota para o frontend verificar quem está logado
 app.get('/api/me', (req, res) => {
@@ -194,8 +217,6 @@ app.post('/api/solicitacoes', upload.single('arquivo'), async (req, res) => {
     // Monta a URL do arquivo para salvar no banco
     const url_arquivo_armazenado = `${process.env.PUBLIC_URL}:9000/${process.env.MINIO_BUCKET}/${fileName}`;
 
-
-
     const novaSolicitacao = await prisma.solicitacao.create({
       data: {
         id_usuario,
@@ -211,6 +232,48 @@ app.post('/api/solicitacoes', upload.single('arquivo'), async (req, res) => {
   } catch (error) {
     console.error("Erro ao criar solicitação com upload:", error);
     res.status(500).json({ message: "Erro interno do servidor. O PDF pode estar corrompido." });
+  }
+});
+
+// Rota para Admin criar Solicitação Manual (Documento Físico)
+app.post('/api/solicitacoes/manual', isAdmin, async (req, res) => {
+  try {
+    const { 
+      id_usuario_solicitante, // ID do professor selecionado
+      tipo_documento, 
+      paginas_documento,      // O novo campo que propus
+      copias_solicitadas,     // O que o admin digitou
+      modo_impressao, 
+      observacoes 
+    } = req.body;
+
+    // Validação dos dados
+    if (!id_usuario_solicitante || !tipo_documento || !paginas_documento || !copias_solicitadas || !modo_impressao) {
+      return res.status(400).json({ message: "Dados incompletos." });
+    }
+
+    // --- Lógica de Contabilidade ---
+    const totalImpressoes = parseInt(paginas_documento, 10) * parseInt(copias_solicitadas, 10);
+
+    const novaSolicitacao = await prisma.solicitacao.create({
+      data: {
+        id_usuario: id_usuario_solicitante, // Salva com o ID do PROFESSOR
+        tipo_documento: tipo_documento,
+        modo_impressao: modo_impressao,
+        observacoes: observacoes,
+
+        copias_solicitadas: parseInt(copias_solicitadas, 10), // ex: 10
+        numero_copias: totalImpressoes,                        // ex: 20
+
+        status: 'Impresso',         // Já entra como impresso
+        url_arquivo_armazenado: null // É um documento físico
+      },
+    });
+    res.status(201).json(novaSolicitacao);
+
+  } catch (error) {
+    console.error("Erro ao criar solicitação manual:", error);
+    res.status(500).json({ message: "Erro interno do servidor." });
   }
 });
 
@@ -299,6 +362,7 @@ app.delete('/api/solicitacoes/:id', async (req, res) => {
 app.get('/api/metrics/copias-por-mes', async (req, res) => {
   try {
     const result = await prisma.solicitacao.groupBy({
+      where: { status: 'Impresso' }, // <-- FILTRO ADICIONADO
       by: ['created_at'],
       _sum: {
         numero_copias: true,
@@ -331,6 +395,7 @@ app.get('/api/metrics/copias-por-mes', async (req, res) => {
 app.get('/api/metrics/distribuicao-tipo', async (req, res) => {
     try {
         const result = await prisma.solicitacao.groupBy({
+            where: { status: 'Impresso' }, // <-- FILTRO ADICIONADO
             by: ['tipo_documento'],
             _count: {
                 id: true,
@@ -353,10 +418,11 @@ app.get('/api/metrics/distribuicao-tipo', async (req, res) => {
 app.get('/api/metrics/top-solicitantes', async (req, res) => {
     try {
         const result = await prisma.solicitacao.groupBy({
-            by: ['id_usuario'],
-            _sum: {
-                numero_copias: true,
-            },
+          where: { status: 'Impresso' }, // <-- FILTRO ADICIONADO
+          by: ['id_usuario'],
+          _sum: {
+              numero_copias: true,
+          },
             orderBy: {
                 _sum: {
                     numero_copias: 'desc',

@@ -6,6 +6,7 @@ import Login from './components/Login';
 import DashboardAdmin from './components/DashboardAdmin';
 import Metricas from './components/Metricas';
 import Layout from './components/Layout'; // A importação está correta
+import CriarSolicitacaoManual from './components/CriarSolicitacaoManual';
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL, // Certifique-se que esta URL está correta ou use a variável de ambiente ex: http://localhost:4000
@@ -71,11 +72,14 @@ function App() {
         if (view.role === 'ADMIN') {
           if (view.pagina === 'dashboard') {
             // Passamos apenas as props que o DashboardAdmin precisa
-            return <DashboardAdmin user={user} />; 
+            return <DashboardAdmin user={user} onNavigate={handleNavigate} />; 
           }
           if (view.pagina === 'metrics') {
              // Passamos apenas as props que o Metricas precisa
             return <Metricas user={user} />;
+          }
+          if (view.pagina === 'manual') { // <-- ADICIONE ESTE BLOCO
+            return <CriarSolicitacaoManual user={user} onNavigate={handleNavigate} />;
           }
         }
 
