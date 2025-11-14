@@ -16,10 +16,12 @@ const api = axios.create({
 function App() {
   const [user, setUser] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [view, setView] = useState({ pagina: 'dashboard', role: null });
+  const [view, setView] = useState({ pagina: 'dashboard', role: null, editId: null });
 
-  const handleNavigate = (pagina) => {
-    setView(prev => ({ ...prev, pagina: pagina }));
+  const handleNavigate = (pagina, id = null) => {
+    // Reseta o editId se estivermos apenas mudando de página (ex: indo para 'metrics')
+    const newEditId = (pagina === 'formulario') ? id : null;
+    setView(prev => ({ ...prev, pagina: pagina, editId: newEditId }));
   };
 
   const handleToggleRoleView = () => {
@@ -86,12 +88,12 @@ function App() {
         // LÓGICA PARA A VISÃO DE SOLICITANTE
         if (view.role === 'SOLICITANTE') {
           if (view.pagina === 'dashboard') {
-             // Passamos apenas as props que o DashboardSolicitante precisa
+            // Agora o DashboardSolicitante recebe o 'handleNavigate' completo
             return <DashboardSolicitante onNavigate={handleNavigate} user={user} />;
           }
           if (view.pagina === 'formulario') {
-             // Passamos apenas as props que o FormularioSolicitacao precisa
-            return <FormularioSolicitacao onNavigate={handleNavigate} user={user} />;
+            // Passamos o editId para o formulário
+            return <FormularioSolicitacao onNavigate={handleNavigate} user={user} editId={view.editId} />;
           }
         }
 

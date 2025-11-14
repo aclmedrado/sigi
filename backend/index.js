@@ -224,6 +224,7 @@ app.post('/api/solicitacoes', upload.single('arquivo'), async (req, res) => {
         tipo_documento,
         numero_copias: totalImpressoesCalculado, // <-- Salvamos o valor calculado
         copias_solicitadas: numCopiasSolicitadas, //<-- Salva o Solicitado
+        paginas_documento: numPaginasPDF,
         modo_impressao: modo_impressao,
         observacoes,
       },
@@ -263,7 +264,8 @@ app.post('/api/solicitacoes/manual', isAdmin, async (req, res) => {
         observacoes: observacoes,
 
         copias_solicitadas: parseInt(copias_solicitadas, 10), // ex: 10
-        numero_copias: totalImpressoes,                        // ex: 20
+        numero_copias: totalImpressoes,                       //ex: 20
+        paginas_documento: parseInt(paginas_documento, 10),                       
 
         status: 'Impresso',         // Já entra como impresso
         url_arquivo_armazenado: null // É um documento físico
@@ -318,6 +320,120 @@ app.get('/api/solicitacoes/me', async (req, res) => {
     res.status(500).json({ message: "Erro interno do servidor." });
   }
 });
+
+//
+// ***** INÍCIO DO NOVO CÓDIGO (ROTAS DE EDIÇÃO) *****
+//
+
+// Rota para BUSCAR os dados de uma solicitação para edição
+app.get('/api/solicitacoes/:id', async (req, res) => {
+  if (!req.user) {
+    return res.status(401).json({ message: "Não autenticado." });
+  }
+
+  try {
+    const { id } = req.params;
+    const solicitacao = await prisma.solicitacao.findUnique({
+      where: { id: id },
+    });
+
+    if (!solicitacao) {
+      return res.status(404).json({ message: "Solicitação não encontrada." });
+    }
+
+    // REGRA DE SEGURANÇA:
+    // Permite se o usuário for o dono OU se for um admin
+    if (solicitacao.id_usuario !== req.user.id && req.user.role !== 'ADMIN') {
+      return res.status(403).json({ message: "Acesso negado. Você não é o dono desta solicitação." });
+    }
+
+    res.json(solicitacao);
+  } catch (error) {
+    res.status(500).json({ message: "Erro interno do servidor." });
+  }
+});
+
+// Rota para SALVAR (Atualizar) uma solicitação
+app.put('/api/solicitacoes/:id', upload.single('arquivo'), async (req, res) => {
+  if (!req.user) {
+    return res.status(401).json({ message: "Não autenticado." });
+  }
+
+  try {
+    const { id } = req.params;
+    const { tipo_documento, copias_solicitadas, modo_impressao, observacoes } = req.body;
+    const newFile = req.file; // O novo arquivo (pode ser undefined)
+
+    // 1. Busca a solicitação original no banco
+    const solicitacaoOriginal = await prisma.solicitacao.findUnique({
+      where: { id: id },
+    });
+
+    if (!solicitacaoOriginal) {
+      return res.status(404).json({ message: "Solicitação não encontrada." });
+    }
+
+    // 2. REGRA DE NEGÓCIO (SEGURANÇA):
+    // Só permite editar se o status for "Pendente" E o usuário for o dono
+    if (solicitacaoOriginal.status !== 'Pendente') {
+      return res.status(403).json({ message: "Ação proibida. Só é possível editar solicitações com status 'Pendente'." });
+    }
+    if (solicitacaoOriginal.id_usuario !== req.user.id) {
+      return res.status(403).json({ message: "Ação proibida. Você não é o dono desta solicitação." });
+    }
+
+    // 3. Prepara os dados para atualização
+    let updateData = {
+      tipo_documento: tipo_documento,
+      copias_solicitadas: parseInt(copias_solicitadas, 10),
+      modo_impressao: modo_impressao,
+      observacoes: observacoes,
+      paginas_documento: solicitacaoOriginal.paginas_documento, // Padrão: usa o n° de páginas antigo
+    };
+
+    // 4. VERIFICA SE UM NOVO ARQUIVO FOI ENVIADO
+    if (newFile) {
+      // Se enviou novo arquivo, tem que re-processar o PDF e o S3
+      const fileBuffer = newFile.buffer;
+      const pdfData = await pdf(fileBuffer); //
+      const numPaginasPDF = pdfData.numpages;
+
+      updateData.paginas_documento = numPaginasPDF; // Atualiza o n° de páginas
+
+      // Lógica de Upload S3
+      const fileName = `${crypto.randomBytes(16).toString('hex')}-${newFile.originalname}`;
+      const command = new PutObjectCommand({
+        Bucket: process.env.MINIO_BUCKET,
+        Key: fileName,
+        Body: fileBuffer,
+        ContentType: newFile.mimetype,
+      });
+      await s3Client.send(command);
+
+      updateData.url_arquivo_armazenado = `${process.env.PUBLIC_URL}:9000/${process.env.MINIO_BUCKET}/${fileName}`;
+    }
+
+    // 5. RECALCULA O TOTAL DE IMPRESSÕES
+    // Usa o n° de páginas (novo ou antigo) e multiplica pelas cópias solicitadas
+    updateData.numero_copias = updateData.paginas_documento * updateData.copias_solicitadas;
+
+    // 6. Atualiza o banco de dados
+    const solicitacaoAtualizada = await prisma.solicitacao.update({
+      where: { id: id },
+      data: updateData,
+    });
+
+    res.json(solicitacaoAtualizada);
+
+  } catch (error) {
+    console.error("Erro ao atualizar solicitação:", error);
+    res.status(500).json({ message: "Erro interno do servidor." });
+  }
+});
+
+//
+// ***** FIM DO NOVO CÓDIGO *****
+//
 
 // Rota para Atualizar o Status de uma Solicitação (Visão do Admin)
 app.patch('/api/solicitacoes/:id/status', async (req, res) => {

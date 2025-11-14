@@ -34,8 +34,9 @@ model Solicitacao {
   url_arquivo_armazenado String?
   tipo_documento         String
   numero_copias          Int
-  copias_solicitadas     Int
-  modo_impressao         ModoImpressao @default(FRENTE_VERSO) // <-- NOVO CAMPO
+  copias_solicitadas     Int?
+  paginas_documento      Int     @default(1)
+  modo_impressao         ModoImpressao @default(FRENTE_VERSO) 
   observacoes            String?
   status                 String   @default("Pendente")
   created_at             DateTime @default(now())

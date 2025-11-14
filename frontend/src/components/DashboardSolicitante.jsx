@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 // Importamos ícones
-import { PlusCircle, Download, UserCircle, Settings, FileText } from 'lucide-react';
+import { PlusCircle, Download, UserCircle, Settings, FileText, FilePenLine } from 'lucide-react';
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -138,6 +138,7 @@ export default function DashboardSolicitante({ onNavigate, user, onToggleRole })
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tipo</th>
                 <th scope="col" className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Cópias</th>
                 <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Ações</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
@@ -179,12 +180,21 @@ export default function DashboardSolicitante({ onNavigate, user, onToggleRole })
                         {solicitacao.status}
                       </span>
                     </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                      {/* Mostra o botão APENAS se o status for 'Pendente' */}
+                      {solicitacao.status === 'Pendente' && (
+                        <button onClick={() => onNavigate('formulario', solicitacao.id)} className="text-indigo-600 hover:text-indigo-900 flex items-center gap-1 ml-auto">
+                          <FilePenLine size={16} />
+                          Editar
+                        </button>
+                      )}
+                    </td>
                   </tr>
                 ))
               ) : (
                 // Mensagem se não houver solicitações
                 <tr>
-                  <td colSpan="5" className="px-6 py-10 text-center text-sm text-gray-500">
+                  <td colSpan="6" className="px-6 py-10 text-center text-sm text-gray-500">
                     Nenhuma solicitação encontrada. Clique em "+ Nova Solicitação" para criar uma.
                   </td>
                 </tr>
