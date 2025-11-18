@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 // Importamos apenas os ícones
-import { Download, Edit, Loader2, FileText, PlusCircle } from 'lucide-react';
+import { Download, Edit, Loader2, FileText, PlusCircle, FilePenLine, RefreshCw } from 'lucide-react';
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -214,19 +214,29 @@ export default function DashboardAdmin({ user, onNavigate }) {
                         </td>
                         {/* Ações (mantém nowrap) */}
                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                          <button
-                            onClick={() => handleOpenModalLogic(solicitacao)}
-                            className="text-indigo-600 hover:text-indigo-900 hover:bg-indigo-50 px-3 py-1 rounded-md border border-indigo-200 text-xs flex items-center gap-1 transition duration-150 ease-in-out"
-                           >
-                            <Edit className="h-4 w-4" />
-                            Alterar
+                          <div className="flex items-center justify-end gap-3">
+                            {/* Botão SUPER EDIÇÃO */}
+                            <button 
+                              onClick={() => onNavigate('formulario', solicitacao.id)}
+                              title="Editar dados da solicitação"
+                              className="text-blue-600 hover:text-blue-900 transition-colors"
+                            >
+                              <FilePenLine size={18} />
+                            </button>
+                            <button
+                              onClick={() => handleOpenModalLogic(solicitacao)}
+                              className="text-indigo-600 hover:text-indigo-900 hover:bg-indigo-50 px-3 py-1 rounded-md border border-indigo-200 text-xs flex items-center gap-1 transition duration-150 ease-in-out"
+                            >
+                              <RefreshCw size={18} />
                           </button>
+
+                          </div>
                         </td>
                       </tr>
                     ))
                   ) : (
                     <tr>
-                      <td colSpan={7} className="px-6 py-10 text-center text-sm text-gray-500">
+                      <td colSpan={8} className="px-6 py-10 text-center text-sm text-gray-500">
                         Nenhuma solicitação encontrada no sistema.
                       </td>
                     </tr>

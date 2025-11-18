@@ -83,6 +83,10 @@ function App() {
           if (view.pagina === 'manual') { // <-- ADICIONE ESTE BLOCO
             return <CriarSolicitacaoManual user={user} onNavigate={handleNavigate} />;
           }
+          if (view.pagina === 'formulario'){
+            // Reutilizamos o FormularioSolicitacao, passando o editId
+            return <FormularioSolicitacao onNavigate={handleNavigate} user={user} editId={view.editId} />;
+          }
         }
 
         // LÓGICA PARA A VISÃO DE SOLICITANTE

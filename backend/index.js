@@ -415,7 +415,8 @@ app.put('/api/solicitacoes/:id', upload.single('arquivo'), async (req, res) => {
 
   try {
     const { id } = req.params;
-    const { tipo_documento, copias_solicitadas, modo_impressao, observacoes } = req.body;
+    // Ajuste: Mapeamos 'numero_copias' (que vem do front) para 'copias_solicitadas'
+    const { tipo_documento, numero_copias: copias_solicitadas, modo_impressao, observacoes } = req.body;
     const newFile = req.file; // O novo arquivo (pode ser undefined)
 
     // 1. Busca a solicitação original no banco
@@ -428,13 +429,20 @@ app.put('/api/solicitacoes/:id', upload.single('arquivo'), async (req, res) => {
     }
 
     // 2. REGRA DE NEGÓCIO (SEGURANÇA):
-    // Só permite editar se o status for "Pendente" E o usuário for o dono
-    if (solicitacaoOriginal.status !== 'Pendente') {
-      return res.status(403).json({ message: "Ação proibida. Só é possível editar solicitações com status 'Pendente'." });
-    }
-    if (solicitacaoOriginal.id_usuario !== req.user.id) {
+    // Verifica se o usuário é um Administrador
+    const isUserAdmin = req.user.role === 'ADMIN';
+    
+    // Se o usuário NÃO for admin, aplicamos as regras restritas
+    if (!isUserAdmin) {
+      // REGRA 1: Só pode editar se o status for "Pendente"
+      if (solicitacaoOriginal.status !== 'Pendente') {
+        return res.status(403).json({ message: "Ação proibida. Só é possível editar solicitações com status 'Pendente'." });
+      }
+      // REGRA 2: Só pode editar as próprias solicitações
+      if (solicitacaoOriginal.id_usuario !== req.user.id) {
       return res.status(403).json({ message: "Ação proibida. Você não é o dono desta solicitação." });
-    }
+      }
+    } // Se for Admin, ele pula este bloco 'if' e a edição é permitida para qualquer status/dono.
 
     // 3. Prepara os dados para atualização
     let updateData = {
