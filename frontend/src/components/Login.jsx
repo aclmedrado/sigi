@@ -1,6 +1,6 @@
 import React from 'react';
 // Importa o ícone de login
-import { LogIn } from 'lucide-react'; 
+import { LogIn, Building2 } from 'lucide-react'; 
 
 export default function Login() {
   
@@ -8,6 +8,10 @@ export default function Login() {
   const handleLogin = () => {
     // Usa a variável de ambiente para construir a URL da API
     window.location.href = `${import.meta.env.VITE_API_BASE_URL}/auth/google`;
+  };
+
+  const handleSuapLogin = () => {
+    window.location.href = `${import.meta.env.VITE_API_BASE_URL}/auth/suap`;
   };
 
   return (
@@ -45,6 +49,8 @@ export default function Login() {
         {/* 'transition duration-150 ease-in-out': Transição suave para o efeito hover. */}
         {/* 'focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500': Estilos de foco para acessibilidade. */}
         {/* 'shadow-md hover:shadow-lg': Adiciona sombra ao botão e a aumenta no hover. */}
+        
+         {/* ... Botão do Botão ... */}
         <button
           onClick={handleLogin}
           className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg flex items-center justify-center gap-2 w-full max-w-xs mx-auto transition duration-150 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 shadow-md hover:shadow-lg"
@@ -52,6 +58,18 @@ export default function Login() {
           <LogIn size={20} />
           Entrar com Google
         </button>
+      
+        {/* ... Botão do SUAP ... */}
+        <div className="mt-4"> {/* Espaçamento */}
+          <button
+            onClick={handleSuapLogin}
+            className="bg-green-600 hover:bg-green-700 text-white font-semibold py-3 px-6 rounded-lg flex items-center justify-center gap-2 w-full max-w-xs mx-auto transition duration-150 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 shadow-md hover:shadow-lg"
+          >
+            <Building2 size={20} />
+            Entrar com SUAP
+          </button>
+        
+        </div>
       </div>
     </div>
   );

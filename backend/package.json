@@ -13,12 +13,14 @@
   "dependencies": {
     "@aws-sdk/client-s3": "^3.911.0",
     "@prisma/client": "^6.16.3",
+    "axios": "^1.13.2",
     "cors": "^2.8.5",
     "express": "^5.1.0",
     "express-session": "^1.18.2",
     "multer": "^2.0.2",
     "passport": "^0.7.0",
     "passport-google-oauth20": "^2.0.0",
+    "passport-oauth2": "^1.8.0",
     "pdf-parse": "^1.1.1",
     "pg": "^8.16.3",
     "prisma": "^6.16.3"

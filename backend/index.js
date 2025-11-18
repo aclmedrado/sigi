@@ -9,6 +9,8 @@ const multer = require('multer');
 const { S3Client, PutObjectCommand } = require('@aws-sdk/client-s3');
 const crypto = require('crypto');
 const pdf = require('pdf-parse');
+const OAuth2Strategy = require('passport-oauth2'); 
+const axios = require('axios'); 
 
 // --- 2. INICIALIZAÇÕES ---
 const prisma = new PrismaClient();
@@ -74,6 +76,47 @@ passport.use(new GoogleStrategy({
   }
 ));
 
+// --- ESTRATÉGIA SUAP ---
+passport.use('suap', new OAuth2Strategy({
+    authorizationURL: `${process.env.SUAP_URL}/o/authorize/`,
+    tokenURL: `${process.env.SUAP_URL}/o/token/`,
+    clientID: process.env.SUAP_CLIENT_ID,
+    clientSecret: process.env.SUAP_CLIENT_SECRET,
+    callbackURL: `${process.env.API_BASE_URL || 'http://sigi.ifg.edu.br:4000'}/auth/suap/callback`
+  },
+  async (accessToken, refreshToken, profile, done) => {
+    try {
+      // 1. O Passport troca o código pelo Token, mas não busca os dados do usuário automaticamente no SUAP.
+      // 2. Usamos o axios para buscar os dados do endpoint /api/eu/ usando o token recebido.
+      const suapResponse = await axios.get(`${process.env.SUAP_URL}/api/eu/`, {
+        headers: { Authorization: `Bearer ${accessToken}` }
+      });
+
+      const suapUser = suapResponse.data;
+
+      // 3. Lógica "Encontre ou Crie" (baseada no email institucional)
+      let user = await prisma.user.findUnique({ where: { email: suapUser.email } });
+
+      if (!user) {
+        user = await prisma.user.create({
+          data: {
+            email: suapUser.email,
+            nome_completo: suapUser.nome_usual || suapUser.nome, // SUAP tem 'nome_usual' que é melhor
+            // Tenta pegar a foto, se não tiver, deixa null
+            foto_perfil: suapUser.url_foto_75x100 ? `${process.env.SUAP_URL}${suapUser.url_foto_75x100}` : null,
+            role: 'SOLICITANTE',
+          }
+        });
+      }
+
+      return done(null, user);
+    } catch (error) {
+      console.error("Erro na autenticação SUAP:", error);
+      return done(error, null);
+    }
+  }
+));
+
 passport.serializeUser((user, done) => {
   done(null, user.id);
 });
@@ -104,6 +147,17 @@ app.get('/auth/google/callback',
   passport.authenticate('google', { failureRedirect: '/login/failed' }),
   (req, res) => {
     // Redireciona de volta para o frontend após o sucesso do login ex: http://localhost:5173
+    res.redirect(process.env.FRONTEND_URL);
+  }
+);
+
+// Rotas SUAP
+app.get('/auth/suap', passport.authenticate('suap'));
+
+app.get('/auth/suap/callback', 
+  passport.authenticate('suap', { failureRedirect: '/' }),
+  (req, res) => {
+    // Redireciona para o frontend após sucesso
     res.redirect(process.env.FRONTEND_URL);
   }
 );
